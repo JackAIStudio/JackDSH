@@ -12,9 +12,11 @@ const out =
   (process.env.CI ? 'release' : join(homedir(), '.jds-build-out'))
 
 console.log(`📦 electron-builder ${args.join(' ')} -> output: ${out}`)
+// --publish never：发布由 workflow 的 action-gh-release 负责，
+// 禁掉 electron-builder 自带的 GitHub publish（否则它要 GH_TOKEN 并重复发版）
 const result = spawnSync(
   'npx',
-  ['electron-builder', ...args, `-c.directories.output=${out}`],
+  ['electron-builder', ...args, `-c.directories.output=${out}`, '--publish', 'never'],
   { stdio: 'inherit', shell: true }
 )
 process.exit(result.status ?? 1)
