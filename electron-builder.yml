@@ -1,5 +1,5 @@
 appId: com.jackaistudio.jackdsh
-productName: Jack DSH Studio
+productName: JackDSH
 npmRebuild: false
 directories:
   # 默认输出到仓库内 release/（CI 直接用）。

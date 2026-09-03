@@ -44,7 +44,7 @@ async function createWindow() {
     height: 850,
     minWidth: 900,
     minHeight: 600,
-    title: 'Jack DSH Studio',
+    title: 'JackDSH',
     backgroundColor: '#18181b',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {

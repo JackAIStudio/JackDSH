@@ -1,7 +1,7 @@
-# 🚀 DeepSeek Harness Desktop (开箱即用桌面版)
+# 🚀 JackDSH (开箱即用 DeepSeek Harness 桌面客户端)
 
-> **为 AI 创作者、独立开发者量身定制的 DeepSeek Harness 官方精选桌面客户端。**  
-> **无需安装 Node.js、无需手动配环境，双击即可开箱即用！支持随身 U 盘便携模式。**
+> **为 AI 创作者、独立开发者量身定制的 DeepSeek Harness 桌面客户端。**  
+> **无需安装 Node.js、无需手动配环境，双击即可开箱即用！内置局域网手机遥控与创作者工作台。**
 
 ---
 
