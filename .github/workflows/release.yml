@@ -57,11 +57,21 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: pnpm run build:win
 
-      - name: Upload Release Artifacts
+      # 上传按平台拆分：每个 runner 只产出自己平台的产物，
+      # 共用 glob + fail_on_unmatched_files 会在 Windows 上因缺 .dmg 而判死
+      - name: Upload macOS Artifacts
+        if: matrix.os == 'macos-latest'
         uses: softprops/action-gh-release@v2
         with:
           files: |
             release/*.dmg
+            release/*-mac.zip
+          fail_on_unmatched_files: true
+
+      - name: Upload Windows Artifacts
+        if: matrix.os == 'windows-latest'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
             release/*.exe
-            release/*.zip
           fail_on_unmatched_files: true
