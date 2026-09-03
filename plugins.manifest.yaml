@@ -34,3 +34,6 @@ plugins:
   - name: dsh-browser-attach
     repo: https://github.com/JackAIStudio/dsh-browser-attach.git
     ref: main
+  - name: dsh-robust-search
+    repo: https://github.com/JackAIStudio/dsh-robust-search.git
+    ref: main

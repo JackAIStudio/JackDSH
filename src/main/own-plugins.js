@@ -14,4 +14,5 @@ export const OWN_PLUGINS = [
   'dsh-web-restart',
   'dsh-workspace-path',
   'dsh-browser-attach',
+  'dsh-robust-search',
 ]
