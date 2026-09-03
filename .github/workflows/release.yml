@@ -26,9 +26,6 @@ jobs:
       APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       APPLE_TEAM_ID: 92K6CKZ4KM
-      # Developer ID 证书（p12 base64）：secrets 不会自动注入 env，必须显式声明
-      CSC_LINK: ${{ secrets.CSC_LINK }}
-      CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
@@ -55,6 +52,11 @@ jobs:
       - name: Build macOS Artifacts (.dmg, .zip)
         if: matrix.os == 'macos-latest'
         run: pnpm run build:mac
+        env:
+          # 证书只给 mac job：Windows 的 signtool 用不了 macOS p12，
+          # 放在 job 级 env 会让 Windows job 拿它去签 exe 而炸掉
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Build Windows Artifacts (.exe, portable .zip)
         if: matrix.os == 'windows-latest'
