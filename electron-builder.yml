@@ -1,0 +1,78 @@
+appId: com.jackaistudio.jackdsh
+productName: Jack DSH Studio
+npmRebuild: false
+directories:
+  # 默认输出到仓库内 release/（CI 直接用）。
+  # 本机 macOS 构建时 package.json 脚本会用 -c.directories.output 覆盖到
+  # $DSH_BUILD_OUT（默认 ~/.jds-build-out）：输出必须落在 iCloud（桌面与文稿
+  # 同步）管理范围之外，否则 FileProvider 会给产物打上
+  # com.apple.fileprovider.fpfs#P 等扩展属性，codesign 报 "detritus not allowed"。
+  output: release
+  buildResources: build
+
+files:
+  - "src/**/*"
+  - "package.json"
+
+extraResources:
+  - from: "bundle-runtime/"
+    to: "runtime"
+    filter:
+      - "**/*"
+  - from: "node_modules/"
+    to: "node_modules"
+    filter:
+      - "!**/.bin/**"
+      - "!**/*.md"
+      - "!**/*.ts"
+      - "!**/*.map"
+      - "!.pnpm/**"
+      - "!.pnpm*/**"
+      - "!.pnpm-workspace-state-v1.json"
+      # node-pty 构建残留的绝对符号链接（指向 homebrew python），
+      # codesign --verify --strict 会判 "invalid destination for symbolic link"
+      - "!**/node-pty/build/node_gyp_bins/**"
+      # 纯构建期工具，运行期不需要；剔除可大幅缩小体积与签名耗时
+      - "!electron/**"
+      - "!electron-builder/**"
+      - "!app-builder-lib/**"
+      - "!app-builder-bin/**"
+      - "!builder-util/**"
+      - "!dmg-builder/**"
+      - "!electron-publish/**"
+      - "!7zip-bin/**"
+
+mac:
+  category: public.app-category.developer-tools
+  # 发行默认双架构（CI 走这个）。本机快速自测用 `pnpm run build:mac:fast`
+  # （脚本层加 --arm64 只构建 Apple Silicon，时间减半）。
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
+  # 公证（notarization）要求开启 hardened runtime；无公证凭据时仅影响签名配置，不影响构建
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+
+portable:
+  artifactName: "${productName}-Portable-${version}-${arch}.${ext}"

@@ -1,0 +1,14 @@
+node_modules/
+release/
+dist/
+bundle-runtime/
+.plugin-cache/
+.DS_Store
+*.log
+.env
+.env.*
+credentials*.json
+token*.json
+sessions/
+*.pid
+data/

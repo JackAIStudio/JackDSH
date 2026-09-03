@@ -1,0 +1,17 @@
+# Jack DSH Studio 默认初始化配置
+# 首次运行自动生成，无任何个人私密凭据、无机器专属地址（代理/公网域名等）
+schema: dsh-settings/v1
+
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+
+# 内置 dsh-grok-oauth 插件的配置命名空间默认值（模型目录），
+# 用户可在「设置 -> Grok」中自行登录与调整。
+llm-grok:
+  enableImageGen: true
+  models:
+    - id: grok-4.6
+      name: Grok 4.6
+      thinking: true
+      vision: true
+      contextWindow: 500000

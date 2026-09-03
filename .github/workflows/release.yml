@@ -1,0 +1,67 @@
+# 打 tag（v*）或手动触发时，在 GitHub 官方 runner 上构建全平台安装包并发布到 Release。
+# 公开仓库的 Actions 分钟数免费；插件源码按 plugins.manifest.yaml 从 PUBLIC 仓库
+# clone 固定 ref，构建输入完全公开、可复现，不需要任何 secret。
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+# 发布 Release 需要写权限
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build & Release (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    env:
+      # runner 的 home 不受 iCloud 影响，直接输出到仓库内 release/ 供上传
+      DSH_BUILD_OUT: release
+      # macOS 公证凭据：在仓库 Settings→Secrets 配置 APPLE_ID 与
+      # APPLE_APP_SPECIFIC_PASSWORD 后，构建自动公证+staple，用户双击零警告；
+      # 未配置时为空，electron-builder 自动跳过公证（退化为「已签名未公证」）。
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: 92K6CKZ4KM
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prepare bundle (public sources, pinned refs)
+        run: node scripts/prepare-bundle.js --source public
+
+      - name: Build macOS Artifacts (.dmg, .zip)
+        if: matrix.os == 'macos-latest'
+        run: pnpm run build:mac
+
+      - name: Build Windows Artifacts (.exe, portable .zip)
+        if: matrix.os == 'windows-latest'
+        run: pnpm run build:win
+
+      - name: Upload Release Artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.dmg
+            release/*.exe
+            release/*.zip
+          fail_on_unmatched_files: true

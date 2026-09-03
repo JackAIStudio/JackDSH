@@ -1,0 +1,36 @@
+# Jack DSH Studio 内置自研插件清单（机器可读）
+#
+# 消费方：scripts/prepare-bundle.js 与 GitHub Actions（.github/workflows/release.yml）。
+# repo 一律填 PUBLIC 开源地址——发行构建「所见即所开源」，可复现、可对账。
+# ref  日常指向 main；正式发版时改成 tag（如 v1.2.0）以钉死构建输入。
+#
+# 本地开发态：若 ../plugins/<name> 存在，默认优先用本地源码（改了不用推就能测）；
+# 用 `node scripts/prepare-bundle.js --source public` 可强制走本清单（与 CI 同路径）。
+plugins:
+  - name: dsh-mobile-plus
+    repo: https://github.com/JackAIStudio/dsh-mobile-plus.git
+    ref: main
+  - name: dsh-grok-oauth
+    repo: https://github.com/JackAIStudio/dsh-grok-oauth.git
+    ref: main
+  - name: dsh-gemini-oauth
+    repo: https://github.com/JackAIStudio/dsh-gemini-oauth.git
+    ref: main
+  - name: dsh-deepseek-balance
+    repo: https://github.com/JackAIStudio/dsh-deepseek-balance.git
+    ref: main
+  - name: dsh-today
+    repo: https://github.com/JackAIStudio/dsh-today.git
+    ref: main
+  - name: dsh-cmdj-toggle
+    repo: https://github.com/JackAIStudio/dsh-cmdj-toggle.git
+    ref: main
+  - name: dsh-web-restart
+    repo: https://github.com/JackAIStudio/dsh-web-restart.git
+    ref: main
+  - name: dsh-workspace-path
+    repo: https://github.com/JackAIStudio/dsh-workspace-path.git
+    ref: main
+  - name: dsh-browser-attach
+    repo: https://github.com/JackAIStudio/dsh-browser-attach.git
+    ref: main
