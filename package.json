@@ -10,10 +10,10 @@
     "prepare-bundle": "node scripts/prepare-bundle.js",
     "dev": "node scripts/prepare-bundle.js && electron .",
     "test:sandbox": "node scripts/test-sandbox-run.js",
-    "build:mac": "node scripts/prepare-bundle.js && electron-builder --mac -c.directories.output=${DSH_BUILD_OUT:-$HOME/.jds-build-out}",
-    "build:mac:fast": "node scripts/prepare-bundle.js && electron-builder --mac --arm64 -c.directories.output=${DSH_BUILD_OUT:-$HOME/.jds-build-out}",
-    "build:win": "node scripts/prepare-bundle.js && electron-builder --win -c.directories.output=${DSH_BUILD_OUT:-$HOME/.jds-build-out}",
-    "build:all": "node scripts/prepare-bundle.js && electron-builder -mw -c.directories.output=${DSH_BUILD_OUT:-$HOME/.jds-build-out}"
+    "build:mac": "node scripts/prepare-bundle.js && node scripts/build.js --mac",
+    "build:mac:fast": "node scripts/prepare-bundle.js && node scripts/build.js --mac --arm64",
+    "build:win": "node scripts/prepare-bundle.js && node scripts/build.js --win",
+    "build:all": "node scripts/prepare-bundle.js && node scripts/build.js -mw"
   },
   "dependencies": {
     "@deepseek-ai/dsh": "0.1.1-rc.2",
