@@ -1,4 +1,4 @@
-# Jack DSH Studio 内置自研插件清单（机器可读）
+# JackDSH 内置自研插件清单（机器可读）
 #
 # 消费方：scripts/prepare-bundle.js 与 GitHub Actions（.github/workflows/release.yml）。
 # repo 一律填 PUBLIC 开源地址——发行构建「所见即所开源」，可复现、可对账。
