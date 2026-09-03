@@ -1,69 +1,68 @@
-# 🚀 JackDSH (开箱即用 DeepSeek Harness 桌面客户端)
+# 🚀 JackDSH
 
-> **为 AI 创作者、独立开发者量身定制的 DeepSeek Harness 桌面客户端。**  
-> **无需安装 Node.js、无需手动配环境，双击即可开箱即用！内置局域网手机遥控与创作者工作台。**
+> **一个基于 DeepSeek Harness 官方框架打包的桌面客户端。**  
+> 免去手动安装 Node.js、配置运行环境与敲终端命令行的繁琐过程，下载安装包即可开箱运行，并内置了局域网手机遥控等自研实用插件。
 
 ---
 
 ## 📥 客户端下载 (Releases)
 
-| 平台 | 安装包类型 | 说明 | 下载链接 |
+直接前往 GitHub 的 [Releases 页面](../../releases/latest) 下载适合你系统的安装包：
+
+| 平台 | 安装包格式 | 适用说明 | 下载直达 |
 | :--- | :--- | :--- | :--- |
-| **macOS** | `.dmg` 安装包 | 支持 Apple Silicon (M系列) 与 Intel 芯片 | [下载 macOS 版](../../releases/latest) |
-| **Windows** | `.exe` 安装包 | 支持 Win10 / Win11 一键安装 | [下载 Windows 安装版](../../releases/latest) |
-| **Windows** | `.zip` 绿色便携版 | **免安装解压即用**，支持放在随身 U 盘，网吧/临时电脑插上即跑 | [下载 Windows 便携版](../../releases/latest) |
+| **macOS** | `.dmg` 安装包 / `.zip` | 支持 Apple Silicon (M1/M2/M3/M4) 与 Intel 芯片 | [前往 Releases 下载](../../releases/latest) |
+| **Windows** | `.exe` 安装包 | 适用于 Windows 10 / 11（标准安装程序） | [前往 Releases 下载](../../releases/latest) |
+| **Windows** | 便携版 `.zip` | **免安装解压即用**，可放入移动存储设备随身携带 | [前往 Releases 下载](../../releases/latest) |
 
-*(国内高速下载备用：百度网盘 / 夸克网盘 / 123云盘，提取码请见下方交流群)*
-
----
-
-## ✨ 核心特色
-
-1. **📱 手机局域网一键扫码控制**
-   - 电脑启动后显示局域网二维码，手机连同一个 Wi-Fi 扫码秒连！
-   - 离开电脑躺在沙发上也能随时查看任务进度、发消息、传文件。
-2. **💼 预装创作者超级工作台**
-   - 内置自媒体数据监控、口播稿智能整理、多平台封面生成、短视频自动化剪辑扩展。
-3. **🔑 多模型免 Key 便捷登录**
-   - 内置 Gemini、Grok (xAI) OAuth 授权登录与额度监控插件。
-4. **🔒 沙盒隔离与数据安全**
-   - 运行环境彻底独立，绝不污染系统；提供便携式模式，配置随身带走。
+> 💡 **初次打开说明**：  
+> 本项目为个人独立开源构建，未购买商业开发者企业证书。macOS 用户首次打开如提示“无法验证开发者”，请在 **系统设置 → 隐私与安全性** 中点击 **“仍要打开”** 即可正常使用。
 
 ---
 
-## 🧩 模块化开源生态矩阵
+## ✨ 核心功能与特性
 
-本项目是基于开源生态构建的**开箱即用官方发行版（Distribution）**。各子模块独立开源并持续迭代：
+1. **开箱即用，免配环境**
+   - 内部已封装好运行所需的依赖与运行环境，无需自行安装 Node.js 或执行 npm 命令，双击即可启动。
+2. **局域网手机扫码控制（自研插件）**
+   - 电脑端启动后提供配对二维码。在**同一局域网（同一 Wi-Fi）**环境下，手机扫码即可建立连接，方便在移动设备上查看任务执行进度、输入消息。*(注：受限于网络拓扑，若路由器开启了 AP 隔离，局域网连接可能受阻)*。
+3. **内置实用插件集成**
+   - 预装了多模型便捷登录（Gemini / Grok OAuth）、DeepSeek 官方 API 余额监控、工作区路径显式标注等实用功能，减少初期折腾成本。
+4. **数据本地隔离**
+   - 运行时配置与数据存放于用户本地应用专属目录，不污染系统的其他全局全局开发环境。
 
-- 📱 **手机远程控制插件**：[`dsh-mobile-plus`](https://github.com/JackAIStudio/dsh-mobile-plus)
-- 🔑 **Gemini 多账号 OAuth 插件**：[`dsh-gemini-oauth`](https://github.com/JackAIStudio/dsh-gemini-oauth)
-- ⚡️ **Grok (xAI) OAuth 插件**：[`dsh-grok-oauth`](https://github.com/JackAIStudio/dsh-grok-oauth)
-- 🔑 **Gemini 多账号 OAuth 插件**：[`dsh-gemini-oauth`](https://github.com/JackAIStudio/dsh-gemini-oauth)
-- 💰 **DeepSeek 余额显示插件**：[`dsh-deepseek-balance`](https://github.com/JackAIStudio/dsh-deepseek-balance)
-- 📅 **状态卡片插件**：[`dsh-today`](https://github.com/JackAIStudio/dsh-today)
+---
+
+## 🧩 模块与开源来源说明
+
+本项目本质上是一个面向终端用户的**打包整合发行版**，严格遵循开源规范，明确区分底层核心与自研插件：
+
+### 1. 底层框架核心
+- **底座内核**：[DeepSeek Harness 官方项目](https://github.com/deepseek-ai/DeepSeek-Harness)（通过官方公开的 npm 包 `@deepseek-ai/dsh` 引入，本仓库不持有其底层框架源码）。
+
+### 2. 自研与集成插件矩阵（全部独立开源）
+发行版内置的插件清单均在各开源仓库公开维护，并在构建时自动拉取公开代码：
+
+- 📱 **局域网手机控制**：[`dsh-mobile-plus`](https://github.com/JackAIStudio/dsh-mobile-plus)
+- ⚡️ **Grok (xAI) 授权登录**：[`dsh-grok-oauth`](https://github.com/JackAIStudio/dsh-grok-oauth)
+- 🔑 **Gemini 授权登录**：[`dsh-gemini-oauth`](https://github.com/JackAIStudio/dsh-gemini-oauth)
+- 💰 **DeepSeek 余额监控**：[`dsh-deepseek-balance`](https://github.com/JackAIStudio/dsh-deepseek-balance)
+- 📅 **状态卡片显示**：[`dsh-today`](https://github.com/JackAIStudio/dsh-today)
 - ⌨️ **Cmd/Ctrl+J 面板切换**：[`dsh-cmdj-toggle`](https://github.com/JackAIStudio/dsh-cmdj-toggle)
-- 🔄 **Web 服务重启按钮**：[`dsh-web-restart`](https://github.com/JackAIStudio/dsh-web-restart)
+- 🔄 **服务快速重启**：[`dsh-web-restart`](https://github.com/JackAIStudio/dsh-web-restart)
 - 📁 **工作区路径显示**：[`dsh-workspace-path`](https://github.com/JackAIStudio/dsh-workspace-path)
-- 🌐 **真实 Chrome 浏览器附加**：[`dsh-browser-attach`](https://github.com/JackAIStudio/dsh-browser-attach)
-
-**生态相关：**
-
-- 🎛️ **侧栏增强**：[`DSH-better-sidebar`](https://github.com/JackAIStudio/DSH-better-sidebar)
-- 🤖 **底层 Agent 框架**：[DeepSeek Harness 官方底座](https://github.com/deepseek-ai/DeepSeek-Harness)（以 npm 包 `@deepseek-ai/dsh` 形式引入编译成品，本仓库不持有其源码）
+- 🌐 **Chrome 浏览器附加**：[`dsh-browser-attach`](https://github.com/JackAIStudio/dsh-browser-attach)
+- 🔍 **增强检索扩展**：[`dsh-robust-search`](https://github.com/JackAIStudio/dsh-robust-search)
 
 ---
 
-## 🏗️ 构建与发布模型
+## 🏗️ 自动化构建机制
 
-- **发行构建只认公开源码**：CI（[`.github/workflows/release.yml`](.github/workflows/release.yml)）按 [`plugins.manifest.yaml`](plugins.manifest.yaml) 从各插件的 **PUBLIC 仓库** clone 固定 ref 后打包——「发行包里有什么 = 开源了什么」，可复现、可对账。打 `v*` tag 自动构建 macOS / Windows 安装包并发布到 Release。
-- **本地开发态**：本机存在 `../plugins/<name>` 源码时，`prepare-bundle` 默认优先用本地（改了不用推就能测）；`node scripts/prepare-bundle.js --source public` 可强制与 CI 同路径。
-- **快速自测**：`pnpm run build:mac:fast` 只构建 Apple Silicon，时间减半；正式构建用 `pnpm run build:mac` / `build:win`（双架构）。
+- **构建源完全透明**：GitHub Actions（[`.github/workflows/release.yml`](.github/workflows/release.yml)）依照 [`plugins.manifest.yaml`](plugins.manifest.yaml) 中的公开清单拉取插件并自动打包。
+- **本地开发**：若本机存在对应插件源码，`scripts/prepare-bundle.js` 会优先复用本地开发目录；正式发版则一律以公开仓库的特定分支为准。
 
 ---
 
-## 💬 交流群与创作者社群
+## 📄 开源许可
 
-- 欢迎加入 **「DeepSeek Harness 玩机与创作者交流群」**
-- 获取高阶自媒体工作流、私有付费插件与企业定制方案
-
-*(扫码添加主理人微信进群 / 关注公众号获取最新版本动态)*
+本项目采用 [MIT 许可证](LICENSE) 开源。各引用插件及依赖库遵循其各自的开源许可协议。欢迎在 GitHub Issues 提交问题反馈与改进建议。
