@@ -27,6 +27,7 @@ jobs:
       APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
       APPLE_TEAM_ID: 92K6CKZ4KM
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
     steps:
@@ -49,14 +50,36 @@ jobs:
       - name: Prepare bundle (public sources, pinned refs)
         run: node scripts/prepare-bundle.js --source public
 
+      - name: Setup macOS Keychain for Code Signing
+        if: matrix.os == 'macos-latest'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          if [ -n "$CSC_LINK" ] && [ -n "$CSC_KEY_PASSWORD" ]; then
+            echo "Configuring keychain for code signing..."
+            KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain"
+            KEYCHAIN_PWD="dsh-build-temp-keychain-pass"
+            security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+            security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+            security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+
+            CERT_PATH="$RUNNER_TEMP/certificate.p12"
+            echo "$CSC_LINK" | base64 --decode > "$CERT_PATH"
+            security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
+            security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+            rm -f "$CERT_PATH"
+
+            EXISTING_KEYCHAINS=$(security list-keychains -d user | tr -d '"' | tr '\n' ' ')
+            security list-keychains -d user -s "$KEYCHAIN_PATH" $EXISTING_KEYCHAINS
+            echo "Keychain configured and identity added to search path."
+          else
+            echo "CSC_LINK or CSC_KEY_PASSWORD not provided, skipping keychain setup."
+          fi
+
       - name: Build macOS Artifacts (.dmg, .zip)
         if: matrix.os == 'macos-latest'
         run: pnpm run build:mac
-        env:
-          # 证书只给 mac job：Windows 的 signtool 用不了 macOS p12，
-          # 放在 job 级 env 会让 Windows job 拿它去签 exe 而炸掉
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
       - name: Build Windows Artifacts (.exe, portable .zip)
         if: matrix.os == 'windows-latest'
