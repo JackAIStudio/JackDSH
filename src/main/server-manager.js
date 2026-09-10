@@ -133,12 +133,11 @@ export class ServerManager {
    * 链接创建失败（如 Windows 无权限）时退化为物理复制。
    */
   initIsolatedProfile() {
-    const pluginsRoot = join(this.runtimePath, 'plugins')
-    const available = OWN_PLUGINS.filter((name) => existsSync(join(pluginsRoot, name, 'package.json')))
-    if (available.length === 0) return
-
     const profileDir = join(this.dshHome, 'profiles', 'web')
     mkdirSync(join(profileDir, 'node_modules'), { recursive: true })
+
+    const pluginsRoot = join(this.runtimePath, 'plugins')
+    const available = OWN_PLUGINS.filter((name) => existsSync(join(pluginsRoot, name, 'package.json')))
 
     const manifestPath = join(profileDir, 'package.json')
     let manifest = null
@@ -164,7 +163,8 @@ export class ServerManager {
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
 
     const patchPath = join(profileDir, 'cordis.patch.yml')
-    if (!existsSync(patchPath)) writeFileSync(patchPath, '[]\n')
+    this.ensureCordisPatch(patchPath)
+
     const workspacePath = join(profileDir, 'pnpm-workspace.yaml')
     if (!existsSync(workspacePath)) {
       writeFileSync(workspacePath, 'packages:\n  - .\n\nnodeLinker: hoisted\nautoInstallPeers: false\n')
@@ -172,6 +172,57 @@ export class ServerManager {
 
     for (const name of available) {
       this.ensurePluginLink(join(profileDir, 'node_modules', name), join(pluginsRoot, name))
+    }
+  }
+
+  /**
+   * 确保 cordis.patch.yml 处于健康状态：
+   * 在 Windows 平台上，DSH 默认的 win32-native 文件夹选择器依赖 koffi 原生模块和子进程，
+   * 在 Electron 封装、跨平台打包以及包含特定中文路径（UTF-16LE 截断 Bug）时极易崩溃退出
+   * （报 win32 folder dialog worker exited before reporting a result）。
+   * 官方标准修复方案为挂载 @deepseek-ai/dsh-host-directory-picker-browse 纯 JS 目录浏览选择器。
+   */
+  ensureCordisPatch(patchPath) {
+    const isWin = process.platform === 'win32' || process.env.DSH_FORCE_BROWSE_PICKER === '1'
+    const browsePickerBlock = [
+      '- id: directory-picker',
+      "  name: '@deepseek-ai/dsh-host-directory-picker-browse'",
+    ].join('\n')
+
+    if (!existsSync(patchPath)) {
+      if (isWin) {
+        writeFileSync(patchPath, `# Windows 环境下启用官方纯 JS 目录浏览选择器，避免原生 Win32 COM 对话框因原生模块或环境问题退出\n${browsePickerBlock}\n`)
+      } else {
+        writeFileSync(patchPath, '[]\n')
+      }
+      return
+    }
+
+    if (!isWin) return
+
+    try {
+      let raw = readFileSync(patchPath, 'utf8')
+      if (raw.includes("name: '@deepseek-ai/dsh-host-directory-picker-browse'") || raw.includes('name: "@deepseek-ai/dsh-host-directory-picker-browse"')) {
+        return
+      }
+
+      if (raw.includes('id: directory-picker')) {
+        raw = raw.replace(
+          /- id: directory-picker[\r\n]+(?:\s+name:\s*['"]?[^'"\r\n]+['"]?[\r\n]*)?/g,
+          `${browsePickerBlock}\n`
+        )
+        writeFileSync(patchPath, raw)
+        return
+      }
+
+      const trimmed = raw.trim()
+      if (!trimmed || trimmed === '[]') {
+        writeFileSync(patchPath, `# Windows 环境下启用官方纯 JS 目录浏览选择器，避免原生 Win32 COM 对话框因原生模块或环境问题退出\n${browsePickerBlock}\n`)
+      } else {
+        writeFileSync(patchPath, raw.endsWith('\n') ? `${raw}\n${browsePickerBlock}\n` : `${raw}\n\n${browsePickerBlock}\n`)
+      }
+    } catch (error) {
+      console.warn(`[ServerManager] failed to patch cordis.patch.yml: ${error.message}`)
     }
   }
 
