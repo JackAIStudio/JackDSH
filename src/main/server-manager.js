@@ -299,6 +299,12 @@ export class ServerManager {
     const fallbackNodeModules = join(__dirname, '../../node_modules')
     const nodePath = existsSync(nodeModulesCandidate) ? nodeModulesCandidate : fallbackNodeModules
 
+    let appVersion = '1.0.0'
+    try {
+      const appPkg = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8'))
+      if (appPkg.version) appVersion = appPkg.version
+    } catch {}
+
     const env = {
       ...process.env,
       // 关键：告诉 Electron 二进制作为无界面的 Node.js 运行时执行，绝不递归弹出 GUI 窗口
@@ -311,6 +317,7 @@ export class ServerManager {
       DSH_WORKSPACE: this.defaultWorkspace,
       DSH_DESKTOP_ISOLATED: '1',
       NODE_ENV: 'production',
+      JACKDSH_VERSION: appVersion,
     }
 
     // 查找内置的官方 DSH 启动脚本 (bin.js)

@@ -40,6 +40,9 @@ plugins:
   - name: dsh-session-navigator
     repo: https://github.com/JackAIStudio/dsh-session-navigator.git
     ref: main
+  - name: dsh-plugin-dashboard
+    repo: https://github.com/JackAIStudio/dsh-plugin-dashboard.git
+    ref: main
   - name: dsh-web-search-follow
     repo: https://github.com/JackAIStudio/dsh-web-search-follow.git
     ref: main

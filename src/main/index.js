@@ -126,6 +126,12 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   try {
+    app.setAboutPanelOptions({
+      applicationName: 'JackDSH',
+      applicationVersion: `v${app.getVersion()}`,
+      version: 'DeepSeek Harness 底座 v0.1.2-rc.1',
+      copyright: 'JackAIStudio · 基于 DeepSeek Harness 官方框架构建',
+    })
     await checkWindowsDataDirectory(app.getPath('userData'))
     await createWindow()
   } catch (err) {

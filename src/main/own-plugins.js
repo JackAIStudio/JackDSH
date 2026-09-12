@@ -16,6 +16,7 @@ export const OWN_PLUGINS = [
   'dsh-reminder',
   'dsh-app-badge',
   'dsh-session-navigator',
+  'dsh-plugin-dashboard',
   'dsh-web-search-follow',
   'dsh-workbuddy-dual',
 ]
