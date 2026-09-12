@@ -77,7 +77,15 @@ function resolvePluginSource(entry) {
     throw new Error(`--source local 但本地缺少插件源码: ${local}`)
   }
   const cache = join(cacheDir, entry.name)
-  rmSync(cache, { recursive: true, force: true })
+  if (existsSync(cache)) {
+    try {
+      rmSync(cache, { recursive: true, force: true })
+    } catch {
+      try {
+        execSync(process.platform === 'win32' ? `rmdir /s /q "${cache}"` : `rm -rf "${cache}"`)
+      } catch {}
+    }
+  }
   mkdirSync(cacheDir, { recursive: true })
   console.log(`  ⬇️  clone ${entry.repo} @ ${entry.ref}`)
   execSync(`git clone --depth 1 --branch ${entry.ref} "${entry.repo}" "${cache}"`, { stdio: ['ignore', 'pipe', 'pipe'] })
