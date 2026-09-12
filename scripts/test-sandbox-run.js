@@ -41,8 +41,12 @@ async function runSelfTest() {
   try {
     const url = await manager.start()
     console.log(`  -> 内置服务拉起成功: ${url}`)
-    const res = await fetch(url)
-    console.log(`  -> HTTP 通信状态码: ${res.status} (预期 200: ${res.status === 200 ? '✅ PASS' : '❌ FAIL'})`)
+    // 使用 redirect: 'manual' 验证 token 登录换票流程（首跳预期 302 重定向并种下签名会话 Cookie）
+    const res = await fetch(url, { redirect: 'manual' })
+    const isTokenRedirect = (res.status === 302 || res.status === 303) && Boolean(res.headers.get('set-cookie'))
+    const isCleanRoot = res.status === 200
+    const pass = isTokenRedirect || isCleanRoot
+    console.log(`  -> HTTP 通信状态码: ${res.status} (${isTokenRedirect ? '303/302 Token 换票并种 Cookie: ✅ PASS' : (pass ? '✅ PASS' : '❌ FAIL')})`)
   } catch (err) {
     console.error('  ❌ 服务拉起失败:', err)
   } finally {

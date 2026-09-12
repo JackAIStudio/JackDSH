@@ -22,18 +22,27 @@ plugins:
   - name: dsh-today
     repo: https://github.com/JackAIStudio/dsh-today.git
     ref: main
-  - name: dsh-cmdj-toggle
-    repo: https://github.com/JackAIStudio/dsh-cmdj-toggle.git
-    ref: main
   - name: dsh-web-restart
     repo: https://github.com/JackAIStudio/dsh-web-restart.git
     ref: main
   - name: dsh-workspace-path
     repo: https://github.com/JackAIStudio/dsh-workspace-path.git
     ref: main
-  - name: dsh-browser-attach
-    repo: https://github.com/JackAIStudio/dsh-browser-attach.git
-    ref: main
   - name: dsh-robust-search
     repo: https://github.com/JackAIStudio/dsh-robust-search.git
+    ref: main
+  - name: dsh-reminder
+    repo: https://github.com/JackAIStudio/dsh-reminder.git
+    ref: main
+  - name: dsh-app-badge
+    repo: https://github.com/JackAIStudio/dsh-app-badge.git
+    ref: main
+  - name: dsh-session-navigator
+    repo: https://github.com/JackAIStudio/dsh-session-navigator.git
+    ref: main
+  - name: dsh-web-search-follow
+    repo: https://github.com/JackAIStudio/dsh-web-search-follow.git
+    ref: main
+  - name: dsh-workbuddy-dual
+    repo: https://github.com/JackAIStudio/dsh-workbuddy-dual.git
     ref: main

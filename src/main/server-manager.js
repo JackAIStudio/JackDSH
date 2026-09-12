@@ -303,8 +303,18 @@ export class ServerManager {
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
+    let authenticatedUrl = ''
+    let stdoutBuffer = ''
+
     this.childProcess.stdout?.on('data', (data) => {
-      console.log(`[DSH-Core] ${data.toString().trim()}`)
+      const text = data.toString()
+      console.log(`[DSH-Core] ${text.trim()}`)
+      stdoutBuffer += text
+      const match = stdoutBuffer.match(/dsh web:\s+(https?:\/\/[^\s\(\)]+)/i)
+      if (match && !authenticatedUrl) {
+        authenticatedUrl = match[1]
+        console.log(`[ServerManager] Detected 0.1.2 authenticated startup URL with token: ${authenticatedUrl}`)
+      }
     })
 
     this.childProcess.stderr?.on('data', (data) => {
@@ -316,9 +326,17 @@ export class ServerManager {
       this.childProcess = null
     })
 
-    // 等待服务端口就绪
-    await this.waitForHttpReady(serverUrl, 15000)
-    return serverUrl
+    // 等待服务启动并捕获带 token 的认证 URL（通常在 1~2 秒内输出）
+    const tokenStart = Date.now()
+    while (Date.now() - tokenStart < 15000) {
+      if (authenticatedUrl) break
+      if (this.childProcess === null) break
+      await new Promise((r) => setTimeout(r, 200))
+    }
+
+    // 确保服务端口已就绪
+    await this.waitForHttpReady(serverUrl, 5000)
+    return authenticatedUrl || serverUrl
   }
 
   /**
@@ -329,7 +347,7 @@ export class ServerManager {
     while (Date.now() - start < timeoutMs) {
       try {
         const res = await fetch(url, { method: 'HEAD' }).catch(() => null)
-        if (res && (res.status === 200 || res.status === 302 || res.status === 404)) {
+        if (res && (res.status === 200 || res.status === 302 || res.status === 401 || res.status === 404)) {
           return true
         }
       } catch {

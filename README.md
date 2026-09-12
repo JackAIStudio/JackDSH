@@ -47,12 +47,15 @@
 - ⚡️ **Grok (xAI) 授权登录**：[`dsh-grok-oauth`](https://github.com/JackAIStudio/dsh-grok-oauth)
 - 🔑 **Gemini 授权登录**：[`dsh-gemini-oauth`](https://github.com/JackAIStudio/dsh-gemini-oauth)
 - 💰 **DeepSeek 余额监控**：[`dsh-deepseek-balance`](https://github.com/JackAIStudio/dsh-deepseek-balance)
-- 📅 **状态卡片显示**：[`dsh-today`](https://github.com/JackAIStudio/dsh-today)
-- ⌨️ **Cmd/Ctrl+J 面板切换**：[`dsh-cmdj-toggle`](https://github.com/JackAIStudio/dsh-cmdj-toggle)
+- 📅 **今日工作区拦截**：[`dsh-today`](https://github.com/JackAIStudio/dsh-today)
 - 🔄 **服务快速重启**：[`dsh-web-restart`](https://github.com/JackAIStudio/dsh-web-restart)
-- 📁 **工作区路径显示**：[`dsh-workspace-path`](https://github.com/JackAIStudio/dsh-workspace-path)
-- 🌐 **Chrome 浏览器附加**：[`dsh-browser-attach`](https://github.com/JackAIStudio/dsh-browser-attach)
+- 📁 **工作区路径中心**：[`dsh-workspace-path`](https://github.com/JackAIStudio/dsh-workspace-path)
 - 🔍 **增强检索扩展**：[`dsh-robust-search`](https://github.com/JackAIStudio/dsh-robust-search)
+- 🔔 **任务完成提示音**：[`dsh-reminder`](https://github.com/JackAIStudio/dsh-reminder)
+- 🔴 **应用未读红点角标**：[`dsh-app-badge`](https://github.com/JackAIStudio/dsh-app-badge)
+- 🧭 **会话深层导航**：[`dsh-session-navigator`](https://github.com/JackAIStudio/dsh-session-navigator)
+- 🔎 **模型跟随联网搜索**：[`dsh-web-search-follow`](https://github.com/JackAIStudio/dsh-web-search-follow)
+- 🤝 **WorkBuddy 双轨并发直连**：[`dsh-workbuddy-dual`](https://github.com/JackAIStudio/dsh-workbuddy-dual)
 
 ---
 
