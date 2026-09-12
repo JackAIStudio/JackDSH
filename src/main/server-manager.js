@@ -152,14 +152,44 @@ export class ServerManager {
     manifest.dsh = manifest.dsh && typeof manifest.dsh === 'object' ? manifest.dsh : {}
     manifest.dsh.profile = manifest.dsh.profile && typeof manifest.dsh.profile === 'object' ? manifest.dsh.profile : {}
     const bundles = Array.isArray(manifest.dsh.profile.bundles) ? [...manifest.dsh.profile.bundles] : []
-    if (!bundles.includes('@deepseek-ai/dsh-base')) bundles.unshift('@deepseek-ai/dsh-base')
-    if (!bundles.includes('@deepseek-ai/dsh-web-app')) {
-      bundles.splice(bundles.indexOf('@deepseek-ai/dsh-base') + 1, 0, '@deepseek-ai/dsh-web-app')
+
+    // 自动自愈：清理已废弃或断开的旧内置插件软链与 bundles 声明，防止 DSH 内核因找不到 bundle 崩溃黑屏
+    const profileNodeModules = join(profileDir, 'node_modules')
+    const userDeps = manifest.dependencies && typeof manifest.dependencies === 'object' ? Object.keys(manifest.dependencies) : []
+    const cleanedBundles = []
+
+    for (const b of bundles) {
+      if (b === '@deepseek-ai/dsh-base' || b === '@deepseek-ai/dsh-web-app' || b.startsWith('@deepseek-ai/')) {
+        cleanedBundles.push(b)
+        continue
+      }
+      if (userDeps.includes(b)) {
+        cleanedBundles.push(b)
+        continue
+      }
+      if (available.includes(b)) {
+        cleanedBundles.push(b)
+      } else {
+        // 不在当前内置列表，检查 node_modules 中是否真的存在可用包；若为坏软链或不存在则自动剔除
+        const pkgPath = join(profileNodeModules, b, 'package.json')
+        if (existsSync(pkgPath)) {
+          cleanedBundles.push(b)
+        } else {
+          console.log(`[ServerManager] 自动清理失效/已废弃插件 bundle 声明: ${b}`)
+          const deadLink = join(profileNodeModules, b)
+          try { unlinkSync(deadLink) } catch {}
+        }
+      }
+    }
+
+    if (!cleanedBundles.includes('@deepseek-ai/dsh-base')) cleanedBundles.unshift('@deepseek-ai/dsh-base')
+    if (!cleanedBundles.includes('@deepseek-ai/dsh-web-app')) {
+      cleanedBundles.splice(cleanedBundles.indexOf('@deepseek-ai/dsh-base') + 1, 0, '@deepseek-ai/dsh-web-app')
     }
     for (const name of available) {
-      if (!bundles.includes(name)) bundles.push(name)
+      if (!cleanedBundles.includes(name)) cleanedBundles.push(name)
     }
-    manifest.dsh.profile.bundles = bundles
+    manifest.dsh.profile.bundles = cleanedBundles
     writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
 
     const patchPath = join(profileDir, 'cordis.patch.yml')
