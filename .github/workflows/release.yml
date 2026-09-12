@@ -93,7 +93,6 @@ jobs:
         with:
           files: |
             release/*.dmg
-            release/*-mac.zip
           fail_on_unmatched_files: true
 
       - name: Upload Windows Artifacts

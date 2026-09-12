@@ -44,17 +44,13 @@ extraResources:
 
 mac:
   category: public.app-category.developer-tools
-  # 发行默认双架构（CI 走这个）。本机快速自测用 `pnpm run build:mac:fast`
-  # （脚本层加 --arm64 只构建 Apple Silicon，时间减半）。
+  # 仅打包 DMG 磁盘映像，移除冗余无用的 zip 压缩包，避免普通用户产生选择困难
   target:
     - target: dmg
       arch:
         - arm64
         - x64
-    - target: zip
-      arch:
-        - arm64
-        - x64
+  artifactName: "${productName}-${version}-macOS-${arch}.${ext}"
   # 公证（notarization）要求开启 hardened runtime；无公证凭据时仅影响签名配置，不影响构建
   hardenedRuntime: true
   gatekeeperAssess: false
@@ -73,6 +69,7 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
+  artifactName: "${productName}-${version}-Windows-安装版.${ext}"
 
 portable:
-  artifactName: "${productName}-Portable-${version}-${arch}.${ext}"
+  artifactName: "${productName}-${version}-Windows-免安装绿色版.${ext}"
