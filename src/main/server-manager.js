@@ -1,5 +1,5 @@
 import { fork, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, lstatSync, readlinkSync, unlinkSync, symlinkSync, cpSync } from 'node:fs'
+import { existsSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, lstatSync, readlinkSync, unlinkSync, symlinkSync, cpSync, createWriteStream } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -24,6 +24,8 @@ export class ServerManager {
     // 确定隔离的数据存放目录（DSH_HOME），支持用户自定义，见 resolveDshHome
     this.dshHome = this.resolveDshHome(options.appDataPath)
     this.defaultWorkspace = join(this.dshHome, 'workspace')
+    this.logFile = join(this.dshHome, 'dsh-web.log')
+    this.lastExitCode = null
   }
 
   /**
@@ -336,9 +338,13 @@ export class ServerManager {
     let authenticatedUrl = ''
     let stdoutBuffer = ''
 
+    const logStream = createWriteStream(this.logFile, { flags: 'a' })
+    logStream.write(`\n[${new Date().toISOString()}] === JackDSH Core Starting on port ${this.port} ===\n`)
+
     this.childProcess.stdout?.on('data', (data) => {
       const text = data.toString()
       console.log(`[DSH-Core] ${text.trim()}`)
+      logStream.write(data)
       stdoutBuffer += text
       const match = stdoutBuffer.match(/dsh web:\s+(https?:\/\/[^\s\(\)]+)/i)
       if (match && !authenticatedUrl) {
@@ -349,10 +355,13 @@ export class ServerManager {
 
     this.childProcess.stderr?.on('data', (data) => {
       console.error(`[DSH-Core Error] ${data.toString().trim()}`)
+      logStream.write(data)
     })
 
     this.childProcess.on('exit', (code, signal) => {
       console.log(`[DSH-Core] Process exited with code ${code}, signal ${signal}`)
+      logStream.write(`[${new Date().toISOString()}] Process exited with code ${code}, signal ${signal}\n`)
+      this.lastExitCode = code
       this.childProcess = null
     })
 
@@ -364,8 +373,16 @@ export class ServerManager {
       await new Promise((r) => setTimeout(r, 200))
     }
 
+    if (!authenticatedUrl && this.childProcess === null) {
+      const exitMsg = this.lastExitCode !== null ? `底层核心服务异常退出 (退出码: ${this.lastExitCode})` : '底层核心服务未能成功启动'
+      throw new Error(exitMsg)
+    }
+
     // 确保服务端口已就绪
-    await this.waitForHttpReady(serverUrl, 5000)
+    const ready = await this.waitForHttpReady(serverUrl, 5000)
+    if (!ready && !authenticatedUrl) {
+      throw new Error('服务就绪探测超时，未能建立 HTTP 连接')
+    }
     return authenticatedUrl || serverUrl
   }
 

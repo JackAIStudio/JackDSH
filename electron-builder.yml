@@ -44,23 +44,20 @@ extraResources:
 
 mac:
   category: public.app-category.developer-tools
-  # 仅打包 DMG 磁盘映像，移除冗余无用的 zip 压缩包，避免普通用户产生选择困难
+  # 极简双版本：macOS 仅提供 Apple Silicon (M1/M2/M3/M4) arm64 dmg 镜像
   target:
     - target: dmg
       arch:
         - arm64
-        - x64
-  artifactName: "${productName}-${version}-macOS-${arch}.${ext}"
+  artifactName: "${productName}-${version}-Mac-苹果芯片版.${ext}"
   # 公证（notarization）要求开启 hardened runtime；无公证凭据时仅影响签名配置，不影响构建
   hardenedRuntime: true
   gatekeeperAssess: false
 
 win:
+  # 极简双版本：Windows 仅提供标准 NSIS 安装程序（带路径自定义与桌面快捷方式）
   target:
     - target: nsis
-      arch:
-        - x64
-    - target: portable
       arch:
         - x64
 
@@ -70,6 +67,3 @@ nsis:
   createDesktopShortcut: always
   createStartMenuShortcut: true
   artifactName: "${productName}-${version}-Windows-安装版.${ext}"
-
-portable:
-  artifactName: "${productName}-${version}-Windows-免安装绿色版.${ext}"

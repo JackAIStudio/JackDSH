@@ -77,11 +77,11 @@ jobs:
             echo "CSC_LINK or CSC_KEY_PASSWORD not provided, skipping keychain setup."
           fi
 
-      - name: Build macOS Artifacts (.dmg, .zip)
+      - name: Build macOS Artifacts (.dmg)
         if: matrix.os == 'macos-latest'
         run: pnpm run build:mac
 
-      - name: Build Windows Artifacts (.exe, portable .zip)
+      - name: Build Windows Artifacts (.exe)
         if: matrix.os == 'windows-latest'
         run: pnpm run build:win
 
