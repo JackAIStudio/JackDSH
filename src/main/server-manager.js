@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, lstat
 import { join, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { OWN_PLUGINS } from './own-plugins.js'
+import { OWN_PLUGINS, ALL_BUILTIN_PLUGINS } from './own-plugins.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -139,7 +139,7 @@ export class ServerManager {
     mkdirSync(join(profileDir, 'node_modules'), { recursive: true })
 
     const pluginsRoot = join(this.runtimePath, 'plugins')
-    const available = OWN_PLUGINS.filter((name) => existsSync(join(pluginsRoot, name, 'package.json')))
+    const available = ALL_BUILTIN_PLUGINS.filter((name) => existsSync(join(pluginsRoot, name, 'package.json')))
 
     const manifestPath = join(profileDir, 'package.json')
     let manifest = null
@@ -263,6 +263,7 @@ export class ServerManager {
    * 真实目录/文件不破坏（可能由用户 pnpm 管理），直接跳过。
    */
   ensurePluginLink(link, target) {
+    mkdirSync(dirname(link), { recursive: true })
     let stat
     try {
       stat = lstatSync(link)

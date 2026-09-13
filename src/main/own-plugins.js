@@ -20,3 +20,17 @@ export const OWN_PLUGINS = [
   'dsh-web-search-follow',
   'dsh-workbuddy-dual',
 ]
+
+/**
+ * 精选社区开源插件（同样内置预装进一键安装包，开箱即用）
+ */
+export const COMMUNITY_PLUGINS = [
+  '@mlgbnb/dsh-archive-manager',
+  'dsh-codex-timeline',
+  '@wxg-prc-cpg/browser-skill-dsh-plugin',
+]
+
+export const ALL_BUILTIN_PLUGINS = [
+  ...OWN_PLUGINS,
+  ...COMMUNITY_PLUGINS,
+]

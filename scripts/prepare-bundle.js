@@ -1,14 +1,15 @@
 import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
+import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
-import { OWN_PLUGINS } from '../src/main/own-plugins.js'
+import { ALL_BUILTIN_PLUGINS } from '../src/main/own-plugins.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const rootDir = join(__dirname, '..')
 const runtimeDir = join(rootDir, 'bundle-runtime')
 const localPluginsDir = join(rootDir, '../plugins')
-const cacheDir = join(rootDir, '.plugin-cache')
+const cacheDir = process.env.CI ? join(rootDir, '.plugin-cache') : join(tmpdir(), 'jds-plugin-cache')
 
 // ---- 参数：--source auto|local|public（默认 auto：本地有就用本地，否则按清单 clone）
 const sourceFlag = (() => {
@@ -29,19 +30,20 @@ function parseManifest(file) {
   for (const rawLine of text.split('\n')) {
     const line = rawLine.replace(/#.*$/, '').trimEnd()
     if (!line.trim()) continue
-    const itemMatch = line.match(/^\s*-\s+name:\s*(\S+)\s*$/)
-    const kvMatch = line.match(/^\s*(name|repo|ref):\s*(\S+)\s*$/)
+    const itemMatch = line.match(/^\s*-\s+name:\s*['"]?([^'"\s]+)['"]?\s*$/)
+    const kvMatch = line.match(/^\s*(name|repo|ref|npm):\s*['"]?([^'"\s]+)['"]?\s*$/)
     if (itemMatch) {
       current = { name: itemMatch[1] }
       plugins.push(current)
     } else if (kvMatch && current) {
       if (kvMatch[1] === 'repo') current.repo = kvMatch[2]
       if (kvMatch[1] === 'ref') current.ref = kvMatch[2]
+      if (kvMatch[1] === 'npm') current.npm = kvMatch[2]
       if (kvMatch[1] === 'name' && !itemMatch) current.name = kvMatch[2]
     }
   }
   for (const p of plugins) {
-    if (!p.name || !p.repo) throw new Error(`manifest 条目不完整: ${JSON.stringify(p)}`)
+    if (!p.name || (!p.repo && !p.npm)) throw new Error(`manifest 条目不完整: ${JSON.stringify(p)}`)
     p.ref = p.ref || 'main'
   }
   return plugins
@@ -50,7 +52,7 @@ function parseManifest(file) {
 const manifest = parseManifest(join(rootDir, 'plugins.manifest.yaml'))
 
 // 运行期注册清单与构建清单对账：只警告不阻断（运行期按 existsSync 自愈）
-for (const name of OWN_PLUGINS) {
+for (const name of ALL_BUILTIN_PLUGINS) {
   if (!manifest.some((p) => p.name === name)) {
     console.warn(`  ⚠️ 运行期清单(own-plugins.js)里的 ${name} 不在 plugins.manifest.yaml 中`)
   }
@@ -67,8 +69,24 @@ if (existsSync(runtimeDir)) {
 mkdirSync(runtimeDir, { recursive: true })
 mkdirSync(join(runtimeDir, 'plugins'), { recursive: true })
 
-// ---- 解析每个插件的源码目录：local 优先（auto 时），否则 clone public 固定 ref
+// ---- 解析每个插件的源码目录：local 优先（auto 时），否则 clone public 固定 ref 或 npm pack 解包
 function resolvePluginSource(entry) {
+  if (entry.npm) {
+    const cache = join(cacheDir, entry.name.replace(/[@/]/g, '_'))
+    if (existsSync(cache)) {
+      try {
+        rmSync(cache, { recursive: true, force: true })
+      } catch {
+        try { execSync(process.platform === 'win32' ? `rmdir /s /q "${cache}"` : `rm -rf "${cache}"`) } catch {}
+      }
+    }
+    mkdirSync(cache, { recursive: true })
+    console.log(`  ⬇️  npm pack ${entry.npm}`)
+    execSync(`npm pack ${entry.npm}`, { cwd: cache, stdio: ['ignore', 'pipe', 'pipe'] })
+    execSync(`tar -xzf *.tgz --strip-components=1`, { cwd: cache, stdio: ['ignore', 'pipe', 'pipe'] })
+    return { dir: cache, origin: `npm@${entry.npm}` }
+  }
+
   const local = join(localPluginsDir, entry.name)
   if (sourceFlag !== 'public' && existsSync(join(local, 'package.json'))) {
     return { dir: local, origin: 'local' }
@@ -76,7 +94,7 @@ function resolvePluginSource(entry) {
   if (sourceFlag === 'local') {
     throw new Error(`--source local 但本地缺少插件源码: ${local}`)
   }
-  const cache = join(cacheDir, entry.name)
+  const cache = join(cacheDir, entry.name.replace(/[@/]/g, '_'))
   if (existsSync(cache)) {
     try {
       rmSync(cache, { recursive: true, force: true })
@@ -96,6 +114,7 @@ console.log('🧩 [2/3] 收纳精选插件与依赖...')
 for (const entry of manifest) {
   const { dir: src, origin } = resolvePluginSource(entry)
   const dest = join(runtimeDir, 'plugins', entry.name)
+  mkdirSync(dirname(dest), { recursive: true })
   console.log(`  -> 复制插件: ${entry.name} (${origin})`)
   cpSync(src, dest, {
     recursive: true,

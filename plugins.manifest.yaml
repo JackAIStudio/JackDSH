@@ -49,3 +49,10 @@ plugins:
   - name: dsh-workbuddy-dual
     repo: https://github.com/JackAIStudio/dsh-workbuddy-dual.git
     ref: main
+  # 社区开源精选插件（npm 公开发行包，开箱即用预装）
+  - name: "@mlgbnb/dsh-archive-manager"
+    npm: "@mlgbnb/dsh-archive-manager@1.0.7"
+  - name: dsh-codex-timeline
+    npm: "dsh-codex-timeline@0.6.0"
+  - name: "@wxg-prc-cpg/browser-skill-dsh-plugin"
+    npm: "@wxg-prc-cpg/browser-skill-dsh-plugin@0.2.1"
