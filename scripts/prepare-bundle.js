@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -83,7 +83,9 @@ function resolvePluginSource(entry) {
     mkdirSync(cache, { recursive: true })
     console.log(`  ⬇️  npm pack ${entry.npm}`)
     execSync(`npm pack ${entry.npm}`, { cwd: cache, stdio: ['ignore', 'pipe', 'pipe'] })
-    execSync(`tar -xzf *.tgz --strip-components=1`, { cwd: cache, stdio: ['ignore', 'pipe', 'pipe'] })
+    const tgz = readdirSync(cache).find((f) => f.endsWith('.tgz'))
+    if (!tgz) throw new Error(`npm pack 未能生成 tgz 归档: ${entry.npm}`)
+    execSync(`tar -xzf "${tgz}" --strip-components=1`, { cwd: cache, stdio: ['ignore', 'pipe', 'pipe'] })
     return { dir: cache, origin: `npm@${entry.npm}` }
   }
 
