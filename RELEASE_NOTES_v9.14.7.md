@@ -52,11 +52,11 @@
 
 ### 📥 客户端下载
 
-| 平台 | 版本与适用架构 | 文件名与说明 | 状态 |
+| 平台 | 版本与适用架构 | 文件名与大小 | 直接下载直达 |
 | :--- | :--- | :--- | :--- |
-| 🍏 **macOS** | Apple Silicon (M1/M2/M3/M4) | `JackDSH-9.14.7-Mac-苹果芯片版.dmg` | CI 自动构建上传中 |
-| 🪟 **Windows** | x64 (免安装便携版) | `JackDSH-9.14.7-Windows-便携免安装版.zip` | CI 自动构建上传中 |
-| 🪟 **Windows** | x64 (标准安装版) | `JackDSH-9.14.7-Windows-便携免安装版.exe` | CI 自动构建上传中 |
+| 🍏 **macOS** | Apple Silicon (M1/M2/M3/M4) | `JackDSH-9.14.7-Mac-.dmg` (~207 MB) | [点此下载 macOS .dmg](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.7/JackDSH-9.14.7-Mac-.dmg) |
+| 🪟 **Windows** | x64 (绿色便携免安装版) | `JackDSH-9.14.7-Windows-.zip` (~225 MB) | [点此下载 Windows 便携版 .zip](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.7/JackDSH-9.14.7-Windows-.zip) |
+| 🪟 **Windows** | x64 (标准安装向导版) | `JackDSH-9.14.7-Windows-.exe` (~132 MB) | [点此下载 Windows 安装包 .exe](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.7/JackDSH-9.14.7-Windows-.exe) |
 
 > 💡 **首次启动说明**：  
 > - **macOS**：如提示“无法验证开发者”，请前往 **系统设置 → 隐私与安全性**，点击 **“仍要打开”** 即可正常使用。  
