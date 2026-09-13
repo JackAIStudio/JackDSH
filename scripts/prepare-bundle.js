@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, cpSync, rmSync, writeFileSync, readFileSync, readdirSync, chmodSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import { tmpdir } from 'node:os'
+import { tmpdir, homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { execSync } from 'node:child_process'
 import { ALL_BUILTIN_PLUGINS } from '../src/main/own-plugins.js'
@@ -58,7 +58,7 @@ for (const name of ALL_BUILTIN_PLUGINS) {
   }
 }
 
-console.log(`📦 [1/3] 初始化纯净打包暂存目录... (source=${sourceFlag})`)
+console.log(`📦 [1/4] 初始化纯净打包暂存目录... (source=${sourceFlag})`)
 if (existsSync(runtimeDir)) {
   try {
     execSync(`rm -rf "${runtimeDir}"`)
@@ -112,7 +112,7 @@ function resolvePluginSource(entry) {
   return { dir: cache, origin: `public@${entry.ref}` }
 }
 
-console.log('🧩 [2/3] 收纳精选插件与依赖...')
+console.log('🧩 [2/4] 收纳精选插件与依赖...')
 for (const entry of manifest) {
   const { dir: src, origin } = resolvePluginSource(entry)
   const dest = join(runtimeDir, 'plugins', entry.name)
@@ -131,7 +131,124 @@ for (const entry of manifest) {
   })
 }
 
-console.log('🚀 [3/3] 生成独立运行入口 entry.js...')
+// ---- [3/4] 准备内置 CLI 工具 (BrowserSkill bsk)
+console.log('🛠️ [3/4] 准备内置 CLI 工具 (BrowserSkill bsk)...')
+
+function prepareBskCli(targetDir, manifestList) {
+  const binDir = join(targetDir, 'bin')
+  mkdirSync(binDir, { recursive: true })
+
+  // 1. 确定需要的 bsk 版本（跟随 browser-skill 插件版本，默认 0.2.1）
+  const bskEntry = manifestList.find((p) => p.name === '@wxg-prc-cpg/browser-skill-dsh-plugin')
+  let bskVersion = '0.2.1'
+  if (bskEntry?.npm) {
+    const match = bskEntry.npm.match(/@(\d+\.\d+\.\d+.*)$/)
+    if (match) bskVersion = match[1]
+  }
+
+  const bskCacheRoot = join(cacheDir, 'bsk-bin')
+  mkdirSync(bskCacheRoot, { recursive: true })
+
+  // 2. 预设支持的目标平台架构与官方资产
+  const targets = [
+    {
+      id: 'darwin-arm64',
+      fileName: 'bsk',
+      asset: `bsk-v${bskVersion}-aarch64-apple-darwin.tar.gz`,
+      type: 'tar.gz',
+    },
+    {
+      id: 'win32-x64',
+      fileName: 'bsk.exe',
+      asset: `bsk-v${bskVersion}-x86_64-pc-windows-msvc.zip`,
+      type: 'zip',
+    },
+  ]
+
+  if (process.arch === 'x64' && process.platform === 'darwin') {
+    targets.unshift({
+      id: 'darwin-x64',
+      fileName: 'bsk',
+      asset: `bsk-v${bskVersion}-x86_64-apple-darwin.tar.gz`,
+      type: 'tar.gz',
+    })
+  }
+
+  for (const t of targets) {
+    const cachedBinary = join(bskCacheRoot, t.id, t.fileName)
+    const targetPlatformDir = join(binDir, t.id)
+    mkdirSync(targetPlatformDir, { recursive: true })
+    const destInPlatform = join(targetPlatformDir, t.fileName)
+
+    if (!existsSync(cachedBinary)) {
+      mkdirSync(dirname(cachedBinary), { recursive: true })
+
+      // 本地极速加速：若本机 ~/.local/bin/bsk 已存在且版本匹配，直接复用
+      const currentPlatformId = `${process.platform}-${process.arch}`
+      const localMachineBsk = join(homedir(), '.local', 'bin', t.fileName)
+      let usedLocal = false
+      if (t.id === currentPlatformId && existsSync(localMachineBsk)) {
+        try {
+          const verOut = execSync(`"${localMachineBsk}" --version`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
+          if (verOut.includes(bskVersion)) {
+            cpSync(localMachineBsk, cachedBinary)
+            console.log(`  -> 复用本机已安装的 bsk [${t.id}] (${verOut.trim()})`)
+            usedLocal = true
+          }
+        } catch {}
+      }
+
+      if (!usedLocal) {
+        const downloadUrl = `https://github.com/Tencent/BrowserSkill/releases/download/cli-v${bskVersion}/${t.asset}`
+        const tempArchive = join(bskCacheRoot, `${t.id}-${t.asset}`)
+        console.log(`  ⬇️  下载 BrowserSkill [${t.id}] -> ${t.asset}`)
+        try {
+          execSync(`curl -fsSL "${downloadUrl}" -o "${tempArchive}"`, { stdio: ['ignore', 'pipe', 'pipe'] })
+          const extractDir = join(bskCacheRoot, `extract-${t.id}`)
+          rmSync(extractDir, { recursive: true, force: true })
+          mkdirSync(extractDir, { recursive: true })
+          if (t.type === 'tar.gz') {
+            execSync(`tar -xzf "${tempArchive}" -C "${extractDir}"`, { stdio: ['ignore', 'pipe', 'pipe'] })
+          } else if (t.type === 'zip') {
+            execSync(`unzip -o -q "${tempArchive}" -d "${extractDir}"`, { stdio: ['ignore', 'pipe', 'pipe'] })
+          }
+          const found = existsSync(join(extractDir, t.fileName))
+            ? join(extractDir, t.fileName)
+            : readdirSync(extractDir).map((f) => join(extractDir, f)).find((p) => p.endsWith(t.fileName))
+          if (!found) throw new Error(`解压包中未找到 ${t.fileName}`)
+          cpSync(found, cachedBinary)
+          rmSync(extractDir, { recursive: true, force: true })
+          rmSync(tempArchive, { force: true })
+        } catch (err) {
+          console.warn(`  ⚠️ 下载/解压 ${t.id} 失败: ${err.message}`)
+        }
+      }
+    }
+
+    if (existsSync(cachedBinary)) {
+      cpSync(cachedBinary, destInPlatform)
+      if (t.fileName !== 'bsk.exe') {
+        try { chmodSync(destInPlatform, 0o755) } catch {}
+      }
+      // 如果与当前宿主平台架构匹配，在 bin/ 根目录也放一份直接可执行文件
+      const currentHostId = `${process.platform}-${process.arch}`
+      if (t.id === currentHostId) {
+        const topLevelDest = join(binDir, t.fileName)
+        cpSync(cachedBinary, topLevelDest)
+        if (t.fileName !== 'bsk.exe') {
+          try { chmodSync(topLevelDest, 0o755) } catch {}
+        }
+        console.log(`  ✅ 内置当前宿主 bsk 就绪: ${topLevelDest}`)
+      } else {
+        console.log(`  ✅ 内置跨平台资产就绪: ${destInPlatform}`)
+      }
+    }
+  }
+}
+
+prepareBskCli(runtimeDir, manifest)
+
+console.log('🚀 [4/4] 生成独立运行入口 entry.js...')
 const entryContent = `/**
  * JackDSH Embedded Core Entry
  * Boots the official DeepSeek Harness Web engine

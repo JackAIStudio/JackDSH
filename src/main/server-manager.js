@@ -1,9 +1,10 @@
 import { fork, spawn } from 'node:child_process'
-import { existsSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, lstatSync, readlinkSync, unlinkSync, symlinkSync, cpSync, createWriteStream } from 'node:fs'
+import { existsSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, lstatSync, readlinkSync, unlinkSync, symlinkSync, cpSync, createWriteStream, chmodSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { OWN_PLUGINS, ALL_BUILTIN_PLUGINS } from './own-plugins.js'
+import { TunnelClient } from './tunnel-client.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -26,6 +27,8 @@ export class ServerManager {
     this.defaultWorkspace = join(this.dshHome, 'workspace')
     this.logFile = join(this.dshHome, 'dsh-web.log')
     this.lastExitCode = null
+    this.relayConfigFile = join(this.dshHome, 'remote-relay.json')
+    this.tunnelClient = null
   }
 
   /**
@@ -79,10 +82,152 @@ export class ServerManager {
   }
 
   /**
+   * 自动解析并创建当日工作区：
+   * 便携模式：<dshHome>/JackDSH/days/YYYY-MM-DD
+   * 常规模式：~/Documents/JackDSH/days/YYYY-MM-DD（若无 Documents 则兜底 ~/JackDSH）
+   * 使得无论是网吧便携还是个人 Mac，冷启动打开直接进入当天的专属工作区。
+   */
+  resolveInitialWorkspace() {
+    const now = new Date()
+    const y = now.getFullYear()
+    const m = String(now.getMonth() + 1).padStart(2, '0')
+    const d = String(now.getDate()).padStart(2, '0')
+    const today = `${y}-${m}-${d}`
+
+    if (this.isPortable) {
+      const portableDays = join(this.dshHome, 'JackDSH', 'days', today)
+      try {
+        mkdirSync(portableDays, { recursive: true })
+        return portableDays
+      } catch (err) {
+        console.warn(`[ServerManager] failed to create portable workspace: ${err.message}`)
+      }
+    }
+
+    const docDir = join(homedir(), 'Documents')
+    if (existsSync(docDir)) {
+      const todayDir = join(docDir, 'JackDSH', 'days', today)
+      try {
+        mkdirSync(todayDir, { recursive: true })
+        return todayDir
+      } catch (err) {
+        console.warn(`[ServerManager] failed to create documents workspace: ${err.message}`)
+      }
+    }
+
+    const fallbackDir = join(homedir(), 'JackDSH', 'days', today)
+    try {
+      mkdirSync(fallbackDir, { recursive: true })
+      return fallbackDir
+    } catch {
+      return join(this.dshHome, 'workspace')
+    }
+  }
+
+  /**
+   * 读取公网远程中继配置
+   */
+  getRelayConfig() {
+    try {
+      if (existsSync(this.relayConfigFile)) {
+        const raw = readFileSync(this.relayConfigFile, 'utf8')
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') {
+          return {
+            enabled: Boolean(parsed.enabled),
+            server: (parsed.server || '').trim(),
+            token: (parsed.token || '').trim(),
+            publicBaseUrl: (parsed.publicBaseUrl || '').trim(),
+            updatedAt: parsed.updatedAt || null,
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[ServerManager] failed to read relay config: ${err.message}`)
+    }
+    return { enabled: false, server: '', token: '', publicBaseUrl: '' }
+  }
+
+  /**
+   * 保存并应用公网远程中继配置
+   */
+  saveRelayConfig(config) {
+    const clean = {
+      enabled: Boolean(config.enabled),
+      server: (config.server || '').trim(),
+      token: (config.token || '').trim(),
+      publicBaseUrl: (config.publicBaseUrl || '').trim().replace(/\/$/, ''),
+      updatedAt: new Date().toISOString(),
+    }
+    try {
+      writeFileSync(this.relayConfigFile, JSON.stringify(clean, null, 2) + '\n')
+    } catch (err) {
+      console.warn(`[ServerManager] failed to write relay config: ${err.message}`)
+    }
+
+    // 同步更新 cordis.patch.yml
+    const profileDir = join(this.dshHome, 'profiles', 'web')
+    const patchPath = join(profileDir, 'cordis.patch.yml')
+    if (existsSync(profileDir)) {
+      this.ensureCordisPatch(patchPath)
+    }
+
+    // 若服务已在运行，动态调整隧道连接
+    if (this.childProcess) {
+      if (clean.enabled && clean.server && clean.token) {
+        console.log(`[ServerManager] Dynamic relay config updated, starting tunnel...`)
+        this.startTunnelClient(clean)
+      } else {
+        console.log(`[ServerManager] Dynamic relay disabled, stopping tunnel...`)
+        this.stopTunnelClient()
+      }
+    }
+    return clean
+  }
+
+  /**
+   * 启动反向隧道客户端
+   */
+  startTunnelClient(configOverride) {
+    const config = configOverride || this.getRelayConfig()
+    if (!config.enabled || !config.server || !config.token) {
+      return
+    }
+    this.stopTunnelClient()
+    this.tunnelClient = new TunnelClient({
+      relayServer: config.server,
+      token: config.token,
+      localPort: this.port,
+      clientId: `jackdsh_${process.platform}`,
+      clientInfo: `JackDSH Desktop (${process.platform})`,
+    })
+    this.tunnelClient.on('connected', () => {
+      console.log(`[ServerManager] Remote relay tunnel active! (${config.publicBaseUrl || config.server})`)
+    })
+    this.tunnelClient.on('disconnected', ({ code, reason }) => {
+      console.log(`[ServerManager] Remote relay tunnel disconnected: code=${code}`)
+    })
+    this.tunnelClient.start()
+  }
+
+  /**
+   * 停止反向隧道客户端
+   */
+  stopTunnelClient() {
+    if (this.tunnelClient) {
+      try {
+        this.tunnelClient.stop()
+      } catch {}
+      this.tunnelClient = null
+    }
+  }
+
+  /**
    * Ensure clean isolated directory structure & default settings
    */
   initIsolatedStorage() {
     mkdirSync(this.dshHome, { recursive: true })
+    this.defaultWorkspace = this.resolveInitialWorkspace()
     mkdirSync(this.defaultWorkspace, { recursive: true })
 
     const settingsFile = join(this.dshHome, 'settings.yaml')
@@ -93,30 +238,79 @@ export class ServerManager {
       }
     }
     this.migrateSettingsDefaults(settingsFile)
+
+    // 确保出厂内置的「Jack 模式」预设存在于隔离环境
+    const jackPresetDir = join(this.dshHome, '.agent-presets', 'jack')
+    mkdirSync(jackPresetDir, { recursive: true })
+    const templatePresetDir = join(__dirname, '../../config-templates/presets/jack')
+    if (existsSync(templatePresetDir)) {
+      for (const file of ['preset.yml', 'agent.cordis.yml']) {
+        const dest = join(jackPresetDir, file)
+        const src = join(templatePresetDir, file)
+        if (!existsSync(dest) && existsSync(src)) {
+          try {
+            copyFileSync(src, dest)
+          } catch (err) {
+            console.warn(`[ServerManager] failed to copy preset file ${file}: ${err.message}`)
+          }
+        }
+      }
+    }
+
+    // 权限自愈防护：确保敏感凭据符合官方 @deepseek-ai/dsh-credentials-local (mode 600) 安全标准
+    if (process.platform !== 'win32') {
+      const sensitiveFiles = [
+        '.credentials.yaml',
+        'grok-oauth.json',
+        'gemini-oauth.json',
+        'gemini-oauth-models.json',
+      ]
+      for (const file of sensitiveFiles) {
+        const fullPath = join(this.dshHome, file)
+        if (existsSync(fullPath)) {
+          try {
+            chmodSync(fullPath, 0o600)
+          } catch {}
+        }
+      }
+    }
   }
 
   /**
    * 存量隔离环境迁移：旧模板生成的 settings.yaml 缺少内置插件需要的
-   * 配置命名空间（如 llm-grok）。只补不删，绝不动用户已写的内容。
+   * 配置命名空间（如 llm-grok）或默认预设设置。只补不删，绝不动用户已写的内容。
    */
   migrateSettingsDefaults(settingsFile) {
     try {
-      const raw = readFileSync(settingsFile, 'utf8')
-      if (raw.includes('llm-grok:')) return
-      const block = [
-        '',
-        '# Jack DSH Studio 内置插件默认配置（首次升级自动补充）',
-        'llm-grok:',
-        '  enableImageGen: true',
-        '  models:',
-        '    - id: grok-4.6',
-        '      name: Grok 4.6',
-        '      thinking: true',
-        '      vision: true',
-        '      contextWindow: 500000',
-        '',
-      ].join('\n')
-      writeFileSync(settingsFile, raw.endsWith('\n') ? raw + block : raw + '\n' + block)
+      let raw = readFileSync(settingsFile, 'utf8')
+      let changed = false
+
+      if (!raw.includes('agent-presets:')) {
+        raw += '\n# 默认启用高效自主编码 Agent 预设\nagent-presets:\n  default: jack\n'
+        changed = true
+      }
+
+      if (!raw.includes('llm-grok:')) {
+        const block = [
+          '',
+          '# Jack DSH Studio 内置插件默认配置（首次升级自动补充）',
+          'llm-grok:',
+          '  enableImageGen: true',
+          '  models:',
+          '    - id: grok-4.6',
+          '      name: Grok 4.6',
+          '      thinking: true',
+          '      vision: true',
+          '      contextWindow: 500000',
+          '',
+        ].join('\n')
+        raw = raw.endsWith('\n') ? raw + block : raw + '\n' + block
+        changed = true
+      }
+
+      if (changed) {
+        writeFileSync(settingsFile, raw)
+      }
     } catch (error) {
       console.warn(`[ServerManager] settings migration skipped: ${error.message}`)
     }
@@ -220,38 +414,68 @@ export class ServerManager {
       '- id: directory-picker',
       "  name: '@deepseek-ai/dsh-host-directory-picker-browse'",
     ].join('\n')
+    const clientHmrBlock = [
+      '# 禁用官方客户端热重载 SSE 通道，彻底避免单端口多标签连接耗尽',
+      '- id: client-hmr',
+      '  disabled: true',
+    ].join('\n')
 
     if (!existsSync(patchPath)) {
+      const initialBlocks = [clientHmrBlock]
       if (isWin) {
-        writeFileSync(patchPath, `# Windows 环境下启用官方纯 JS 目录浏览选择器，避免原生 Win32 COM 对话框因原生模块或环境问题退出\n${browsePickerBlock}\n`)
-      } else {
-        writeFileSync(patchPath, '[]\n')
+        initialBlocks.unshift(`# Windows 环境下启用官方纯 JS 目录浏览选择器，避免原生 Win32 COM 对话框因原生模块或环境问题退出\n${browsePickerBlock}`)
       }
+      writeFileSync(patchPath, initialBlocks.join('\n') + '\n')
       return
     }
 
-    if (!isWin) return
-
     try {
       let raw = readFileSync(patchPath, 'utf8')
-      if (raw.includes("name: '@deepseek-ai/dsh-host-directory-picker-browse'") || raw.includes('name: "@deepseek-ai/dsh-host-directory-picker-browse"')) {
-        return
+      let changed = false
+
+      if (isWin && !raw.includes("name: '@deepseek-ai/dsh-host-directory-picker-browse'") && !raw.includes('name: "@deepseek-ai/dsh-host-directory-picker-browse"')) {
+        if (raw.includes('id: directory-picker')) {
+          raw = raw.replace(
+            /- id: directory-picker[\r\n]+(?:\s+name:\s*['"]?[^'"\r\n]+['"]?[\r\n]*)?/g,
+            `${browsePickerBlock}\n`
+          )
+        } else {
+          raw = raw.trim() ? `${raw.trimEnd()}\n\n${browsePickerBlock}\n` : `${browsePickerBlock}\n`
+        }
+        changed = true
       }
 
-      if (raw.includes('id: directory-picker')) {
-        raw = raw.replace(
-          /- id: directory-picker[\r\n]+(?:\s+name:\s*['"]?[^'"\r\n]+['"]?[\r\n]*)?/g,
-          `${browsePickerBlock}\n`
-        )
+      if (!raw.includes('id: client-hmr')) {
+        raw = raw.trim() && raw.trim() !== '[]' ? `${raw.trimEnd()}\n\n${clientHmrBlock}\n` : `${clientHmrBlock}\n`
+        changed = true
+      }
+
+      // 手机远程公网中转配置同步注入
+      const relayConfig = this.getRelayConfig()
+      const mobilePlusMarker = '- id: dsh-mobile-plus'
+      if (relayConfig && relayConfig.enabled && relayConfig.publicBaseUrl) {
+        const mobilePlusBlock = [
+          '# 手机远程公网中转入口',
+          '- id: dsh-mobile-plus',
+          '  config:',
+          `    publicBaseUrl: ${relayConfig.publicBaseUrl}`,
+        ].join('\n')
+
+        if (raw.includes(mobilePlusMarker)) {
+          const reg = /- id: dsh-mobile-plus[\r\n]+(?:\s+config:[\r\n]+(?:\s+publicBaseUrl:\s*[^\r\n]+[\r\n]*)?)?/g
+          const updated = raw.replace(reg, `${mobilePlusBlock}\n`)
+          if (updated !== raw) {
+            raw = updated
+            changed = true
+          }
+        } else {
+          raw = raw.trim() && raw.trim() !== '[]' ? `${raw.trimEnd()}\n\n${mobilePlusBlock}\n` : `${mobilePlusBlock}\n`
+          changed = true
+        }
+      }
+
+      if (changed) {
         writeFileSync(patchPath, raw)
-        return
-      }
-
-      const trimmed = raw.trim()
-      if (!trimmed || trimmed === '[]') {
-        writeFileSync(patchPath, `# Windows 环境下启用官方纯 JS 目录浏览选择器，避免原生 Win32 COM 对话框因原生模块或环境问题退出\n${browsePickerBlock}\n`)
-      } else {
-        writeFileSync(patchPath, raw.endsWith('\n') ? `${raw}\n${browsePickerBlock}\n` : `${raw}\n\n${browsePickerBlock}\n`)
       }
     } catch (error) {
       console.warn(`[ServerManager] failed to patch cordis.patch.yml: ${error.message}`)
@@ -306,8 +530,10 @@ export class ServerManager {
       if (appPkg.version) appVersion = appPkg.version
     } catch {}
 
+    const augmentedPath = this.resolveAugmentedPath()
     const env = {
       ...process.env,
+      PATH: augmentedPath,
       // 关键：告诉 Electron 二进制作为无界面的 Node.js 运行时执行，绝不递归弹出 GUI 窗口
       ELECTRON_RUN_AS_NODE: '1',
       NODE_PATH: nodePath,
@@ -319,6 +545,12 @@ export class ServerManager {
       DSH_DESKTOP_ISOLATED: '1',
       NODE_ENV: 'production',
       JACKDSH_VERSION: appVersion,
+      ...(this.isPortable ? {
+        JACKDSH_PORTABLE_ROOT: this.dshHome,
+        DSH_IS_PORTABLE: '1',
+      } : {
+        JACKDSH_WORKSPACE_ROOT: dirname(dirname(this.defaultWorkspace)),
+      }),
     }
 
     // 查找内置的官方 DSH 启动脚本 (bin.js)
@@ -391,6 +623,8 @@ export class ServerManager {
     if (!ready && !authenticatedUrl) {
       throw new Error('服务就绪探测超时，未能建立 HTTP 连接')
     }
+
+    // 公网中转隧道由内置的 dsh-mobile-plus 原生 RelayBridge 统一托管，避免 Electron 主进程产生重复竞争连接
     return authenticatedUrl || serverUrl
   }
 
@@ -414,9 +648,21 @@ export class ServerManager {
   }
 
   /**
+   * 补全子进程所需的 PATH 环境变量：
+   * 1. 优先注入 App 内置的 runtime/bin 目录（最高优先级，开箱即用内置的 bsk CLI 等工具）；
+   * 2. 补齐 macOS/Linux GUI 桌面应用从 Finder/Dock 启动时丢失的终端 PATH
+   *    （如 /opt/homebrew/bin, /usr/local/bin, ~/.local/bin, ~/.cargo/bin 等）；
+   * 3. 保留并追加原有的 process.env.PATH。
+   */
+  resolveAugmentedPath() {
+    return augmentGlobalPath(this.runtimePath)
+  }
+
+  /**
    * Stop & clean up child process
    */
   stop() {
+    this.stopTunnelClient()
     if (this.childProcess && !this.childProcess.killed) {
       try {
         this.childProcess.kill('SIGTERM')
@@ -428,4 +674,66 @@ export class ServerManager {
       this.childProcess = null
     }
   }
+}
+
+/**
+ * 跨平台环境补全全局 PATH：
+ * 解决 macOS/Linux GUI 桌面应用双击启动时丢失 shell 环境变量的通病。
+ * @param {string} [runtimePath] 可选的 bundle-runtime 根目录
+ * @returns {string} 增强后的 PATH 环境变量字符串
+ */
+export function augmentGlobalPath(runtimePath) {
+  const isWin = process.platform === 'win32'
+  const delimiter = isWin ? ';' : ':'
+  const home = homedir()
+  const extraDirs = []
+
+  if (runtimePath) {
+    const candidates = [
+      join(runtimePath, 'bin'),
+      join(runtimePath, 'bin', `${process.platform}-${process.arch}`),
+    ]
+    for (const c of candidates) {
+      if (existsSync(c) && !extraDirs.includes(c)) {
+        extraDirs.push(c)
+      }
+    }
+  }
+
+  if (!isWin) {
+    const commonPosixDirs = [
+      '/opt/homebrew/bin',
+      '/opt/homebrew/sbin',
+      '/usr/local/bin',
+      '/usr/local/sbin',
+      join(home, '.local', 'bin'),
+      join(home, '.cargo', 'bin'),
+      join(home, 'bin'),
+    ]
+    for (const d of commonPosixDirs) {
+      if (existsSync(d) && !extraDirs.includes(d)) {
+        extraDirs.push(d)
+      }
+    }
+  } else {
+    const commonWinDirs = [
+      join(home, '.local', 'bin'),
+      join(home, '.cargo', 'bin'),
+    ]
+    for (const d of commonWinDirs) {
+      if (existsSync(d) && !extraDirs.includes(d)) {
+        extraDirs.push(d)
+      }
+    }
+  }
+
+  const currentPaths = (process.env.PATH || '').split(delimiter).filter(Boolean)
+  const merged = [...extraDirs]
+  for (const p of currentPaths) {
+    if (!merged.includes(p)) merged.push(p)
+  }
+
+  const finalPath = merged.join(delimiter)
+  process.env.PATH = finalPath
+  return finalPath
 }

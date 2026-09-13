@@ -5,8 +5,27 @@ schema: dsh-settings/v1
 ui-onboarding:
   welcomeNoticeVersion: 2026-08-13.1
 
-# 内置 dsh-grok-oauth 插件的配置命名空间默认值（模型目录），
-# 用户可在「设置 -> Grok」中自行登录与调整。
+# 默认启用高效自主编码 Agent 预设
+agent-presets:
+  default: jack
+
+# 默认完全权限，避免编码流程中频繁弹窗阻塞
+permission:
+  defaultPreset: danger-full-access
+
+ui-conversation:
+  busyEnter: steer
+
+dsh-better-sidebar:
+  workspaceFence: false
+
+# 默认主力模型：Gemini 3.8 Flash (High 深度思考)
+agent-default-model:
+  provider: gemini-oauth
+  model: gemini-3.8-flash-tiered
+  reasoningEffort: high
+
+# 内置 dsh-grok-oauth 插件配置
 llm-grok:
   enableImageGen: true
   models:
@@ -15,3 +34,34 @@ llm-grok:
       thinking: true
       vision: true
       contextWindow: 500000
+      defaultReasoningEffort: high
+      reasoningEfforts:
+        - id: xhigh
+          value: xhigh
+          label: Extra High Effort
+          description: Highest effort and reasoning level
+        - id: high
+          value: high
+          label: High Effort
+          description: Higher implementation quality with extensive reasoning
+        - id: medium
+          value: medium
+          label: Medium Effort
+          description: Balanced effort with standard implementation and testing
+        - id: low
+          value: low
+          label: Low Effort
+          description: Quick, fast implementations
+
+# 内置 DeepSeek 官方模型路由
+llm-deepseek:
+  models:
+    - id: deepseek-flash
+      name: deepseek-flash
+      description: 官方对外 flash 路由（服务端实际返回 deepseek-flash，原生多模态）
+      contextWindow: 1000000
+      inputModalities:
+        - text
+        - image
+      imagePixelBudget: 640000
+      imageMaxBytes: 1048576

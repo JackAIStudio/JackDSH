@@ -19,6 +19,9 @@ export const OWN_PLUGINS = [
   'dsh-plugin-dashboard',
   'dsh-web-search-follow',
   'dsh-workbuddy-dual',
+  'dsh-better-sidebar',
+  'dsh-paste-path',
+  'dsh-autostart',
 ]
 
 /**

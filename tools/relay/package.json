@@ -1,0 +1,13 @@
+{
+  "name": "jackdsh-relay",
+  "version": "1.0.0",
+  "description": "Lightweight universal reverse relay server for JackDSH mobile remote",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

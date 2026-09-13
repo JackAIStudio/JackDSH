@@ -12,6 +12,7 @@ directories:
 
 files:
   - "src/**/*"
+  - "config-templates/**/*"
   - "package.json"
 
 extraResources:
@@ -22,6 +23,7 @@ extraResources:
   - from: "node_modules/"
     to: "node_modules"
     filter:
+      - "!**/* 2*"
       - "!**/.bin/**"
       - "!**/*.md"
       - "!**/*.ts"
@@ -41,6 +43,19 @@ extraResources:
       - "!dmg-builder/**"
       - "!electron-publish/**"
       - "!7zip-bin/**"
+      - "!typescript/**"
+      # 排除非 macOS 平台的预编译底层 C++ 库（防止全平台二进制撑爆包体）
+      - "!@img/sharp-libvips-linux*/**"
+      - "!@img/sharp-libvips-win32*/**"
+      - "!@img/sharp-libvips-darwin-x64/**"
+      - "!@img/sharp-linux*/**"
+      - "!@img/sharp-win32*/**"
+      - "!@img/sharp-darwin-x64/**"
+      - "!@img/sharp-wasm32/**"
+      - "!@img/sharp-freebsd*/**"
+      - "!@vscode/ripgrep-linux*/**"
+      - "!@vscode/ripgrep-win32*/**"
+      - "!@vscode/ripgrep-darwin-x64/**"
 
 mac:
   category: public.app-category.developer-tools
@@ -55,11 +70,18 @@ mac:
   gatekeeperAssess: false
 
 win:
-  # 极简双版本：Windows 仅提供标准 NSIS 安装程序（带路径自定义与桌面快捷方式）
+  # Windows 优先提供绿色免安装便携版（解压即用、零污染）与标准安装版
   target:
+    - target: zip
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
     - target: nsis
       arch:
         - x64
+  artifactName: "${productName}-${version}-Windows-便携免安装版.${ext}"
 
 nsis:
   oneClick: false

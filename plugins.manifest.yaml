@@ -49,6 +49,15 @@ plugins:
   - name: dsh-workbuddy-dual
     repo: https://github.com/JackAIStudio/dsh-workbuddy-dual.git
     ref: main
+  - name: dsh-better-sidebar
+    repo: https://github.com/JackAIStudio/DSH-better-sidebar.git
+    ref: main
+  - name: dsh-paste-path
+    repo: https://github.com/JackAIStudio/dsh-paste-path.git
+    ref: main
+  - name: dsh-autostart
+    repo: https://github.com/JackAIStudio/dsh-autostart.git
+    ref: main
   # 社区开源精选插件（npm 公开发行包，开箱即用预装）
   - name: "@mlgbnb/dsh-archive-manager"
     npm: "@mlgbnb/dsh-archive-manager@1.0.7"
