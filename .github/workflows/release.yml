@@ -45,7 +45,7 @@ jobs:
           version: 10
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --no-frozen-lockfile
 
       - name: Prepare bundle (public sources, pinned refs)
         run: node scripts/prepare-bundle.js --source public
