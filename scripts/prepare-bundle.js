@@ -129,6 +129,22 @@ for (const entry of manifest) {
       return true
     },
   })
+
+  // 关键门禁校验：严查插件入口文件（main / exports）是否真实存在，杜绝缺少 lib/ 编译产物打出空壳包
+  const pluginPkgPath = join(dest, 'package.json')
+  if (existsSync(pluginPkgPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(pluginPkgPath, 'utf8'))
+      if (pkg.main) {
+        const entryFile = join(dest, pkg.main)
+        if (!existsSync(entryFile)) {
+          throw new Error(`插件 ${entry.name} 的入口文件 ${pkg.main} 不存在！请先构建该插件或将 lib/ 构建产物提交到 Git。`)
+        }
+      }
+    } catch (e) {
+      if (e.message.includes('入口文件')) throw e
+    }
+  }
 }
 
 // ---- [3/4] 准备内置 CLI 工具 (BrowserSkill bsk)
