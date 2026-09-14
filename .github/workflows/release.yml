@@ -63,11 +63,12 @@ jobs:
             security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
             security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
             security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+            security default-keychain -s "$KEYCHAIN_PATH"
 
             CERT_PATH="$RUNNER_TEMP/certificate.p12"
             echo "$CSC_LINK" | base64 --decode > "$CERT_PATH"
-            security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild
-            security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+            security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign -T /usr/bin/productbuild -T /usr/bin/security
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
             rm -f "$CERT_PATH"
 
             EXISTING_KEYCHAINS=$(security list-keychains -d user | tr -d '"' | tr '\n' ' ')
@@ -79,31 +80,31 @@ jobs:
 
       - name: Build macOS Artifacts (.dmg)
         if: matrix.os == 'macos-latest'
-        run: pnpm run build:mac
+        run: node scripts/build.js --mac
 
       - name: Build Windows Artifacts (.exe)
         if: matrix.os == 'windows-latest'
-        run: pnpm run build:win
+        run: node scripts/build.js --win
 
-      # 上传按平台拆分：每个 runner 只产出自己平台的产物，
-      # 共用 glob + fail_on_unmatched_files 会在 Windows 上因缺 .dmg 而判死
       - name: Upload macOS Artifacts
         if: matrix.os == 'macos-latest'
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "🚀 JackDSH v9.14.8 — 手机远程公网中转检测、多环境配对探查认领与防互踢加固"
-          body_path: RELEASE_NOTES_v9.14.8.md
-          files: |
-            release/*.dmg
-          fail_on_unmatched_files: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "🚀 JackDSH ${{ github.ref_name }} — 手机远程公网中转检测、多环境配对探查认领与防互踢加固" \
+            --notes-file RELEASE_NOTES_v9.14.8.md \
+            --draft=false 2>/dev/null || true
+          gh release upload "${{ github.ref_name }}" release/*.dmg --clobber
 
       - name: Upload Windows Artifacts
         if: matrix.os == 'windows-latest'
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "🚀 JackDSH v9.14.8 — 手机远程公网中转检测、多环境配对探查认领与防互踢加固"
-          body_path: RELEASE_NOTES_v9.14.8.md
-          files: |
-            release/*.exe
-            release/*.zip
-          fail_on_unmatched_files: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "🚀 JackDSH ${{ github.ref_name }} — 手机远程公网中转检测、多环境配对探查认领与防互踢加固" \
+            --notes-file RELEASE_NOTES_v9.14.8.md \
+            --draft=false 2>/dev/null || true
+          gh release upload "${{ github.ref_name }}" release/*.exe release/*.zip --clobber
