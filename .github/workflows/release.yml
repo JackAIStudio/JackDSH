@@ -91,8 +91,8 @@ jobs:
         if: matrix.os == 'macos-latest'
         uses: softprops/action-gh-release@v2
         with:
-          name: "🚀 JackDSH v9.14.7 — 集成全量自研插件生态、模型随身迁移与macOS沉浸式体验"
-          body_path: RELEASE_NOTES_v9.14.7.md
+          name: "🚀 JackDSH v9.14.8 — 手机远程公网中转检测、多环境配对探查认领与防互踢加固"
+          body_path: RELEASE_NOTES_v9.14.8.md
           files: |
             release/*.dmg
           fail_on_unmatched_files: true
@@ -101,8 +101,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: softprops/action-gh-release@v2
         with:
-          name: "🚀 JackDSH v9.14.7 — 集成全量自研插件生态、模型随身迁移与macOS沉浸式体验"
-          body_path: RELEASE_NOTES_v9.14.7.md
+          name: "🚀 JackDSH v9.14.8 — 手机远程公网中转检测、多环境配对探查认领与防互踢加固"
+          body_path: RELEASE_NOTES_v9.14.8.md
           files: |
             release/*.exe
             release/*.zip
