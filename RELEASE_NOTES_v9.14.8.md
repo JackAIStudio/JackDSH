@@ -35,8 +35,8 @@
 
 | 平台 | 版本与适用架构 | 文件名与格式 | 直接下载直达 |
 | :--- | :--- | :--- | :--- |
-| 🍏 **macOS** | Apple Silicon (M1/M2/M3/M4) | `JackDSH-9.14.8-Mac-.dmg` | [点此下载 macOS .dmg](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.8/JackDSH-9.14.8-Mac-.dmg) |
-| 🪟 **Windows** | x64 (绿色便携免安装版) | `JackDSH-9.14.8-Windows-.zip` | [点此下载 Windows 便携版 .zip](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.8/JackDSH-9.14.8-Windows-.zip) |
-| 🪟 **Windows** | x64 (标准安装向导版) | `JackDSH-9.14.8-Windows-.exe` | [点此下载 Windows 安装包 .exe](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.8/JackDSH-9.14.8-Windows-.exe) |
+| 🍏 **macOS** | Apple Silicon (M1/M2/M3/M4) | `JackDSH-9.14.8-Mac-arm64.dmg` | [点此下载 macOS .dmg](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.8/JackDSH-9.14.8-Mac-arm64.dmg) |
+| 🪟 **Windows** | x64 (绿色便携免安装版) | `JackDSH-9.14.8-Windows-portable.zip` | [点此下载 Windows 便携版 .zip](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.8/JackDSH-9.14.8-Windows-portable.zip) |
+| 🪟 **Windows** | x64 (标准安装向导版) | `JackDSH-9.14.8-Windows-Setup.exe` | [点此下载 Windows 安装包 .exe](https://github.com/JackAIStudio/JackDSH/releases/download/v9.14.8/JackDSH-9.14.8-Windows-Setup.exe) |
 
 > 💡 **提示**：macOS 首次打开若提示“无法打开，因为无法验证开发者”，请在系统「设置 -> 隐私与安全性」中点击「仍要打开」即可。Windows 便携版解压到任意非中文路径即可直接双击运行。

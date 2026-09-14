@@ -64,7 +64,7 @@ mac:
     - target: dmg
       arch:
         - arm64
-  artifactName: "${productName}-${version}-Mac-苹果芯片版.${ext}"
+  artifactName: "${productName}-${version}-Mac-arm64.${ext}"
   # 公证（notarization）要求开启 hardened runtime；无公证凭据时仅影响签名配置，不影响构建
   hardenedRuntime: true
   gatekeeperAssess: false
@@ -75,17 +75,14 @@ win:
     - target: zip
       arch:
         - x64
-    - target: portable
-      arch:
-        - x64
     - target: nsis
       arch:
         - x64
-  artifactName: "${productName}-${version}-Windows-便携免安装版.${ext}"
+  artifactName: "${productName}-${version}-Windows-portable.${ext}"
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  artifactName: "${productName}-${version}-Windows-安装版.${ext}"
+  artifactName: "${productName}-${version}-Windows-Setup.${ext}"
