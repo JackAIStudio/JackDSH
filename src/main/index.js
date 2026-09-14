@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, Tray, shell, dialog, clipboard } from 'electron'
+import { app, BrowserWindow, Menu, Tray, shell, dialog, clipboard, ipcMain } from 'electron'
 import { existsSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -72,33 +72,56 @@ if (!gotTheLock) {
   })
 }
 
+// 全局响应渲染层顶栏智能双击事件：安全切换窗口最大化与还原（macOS 原生 Zoom）
+ipcMain.on('jackdsh:window-toggle-maximize', (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (!win || win.isDestroyed()) return
+  if (process.platform === 'darwin') {
+    if (win.isFullScreen()) {
+      win.setFullScreen(false)
+    } else if (win.isMaximized()) {
+      win.unmaximize()
+    } else {
+      win.maximize()
+    }
+  } else {
+    if (win.isMaximized()) {
+      win.unmaximize()
+    } else {
+      win.maximize()
+    }
+  }
+})
+
 /**
- * 为 macOS 沉浸式标题栏（hiddenInset）注入顶栏拖拽支持与避让样式：
- * 1. 顶部全局挂载固定拖拽条，确保任意页面（包括新会话空白页）均可触控板拖动与双击全屏/放大；
- * 2. 侧栏顶栏让出交通灯宽度（约 78px），折叠态避让顶部；
- * 3. 会话顶栏整行开启拖拽；
- * 4. 所有按钮、输入框、下拉菜单、链接设置 no-drag 与更高层级，确保点击交互 100% 灵敏。
+ * 为 macOS 沉浸式标题栏（hiddenInset）注入精细化拖拽支持与交互防护：
+ * 1. 顶部全局挂载弹性拖拽条：新会话空白页提供 38px 宽裕拖拽，有会话顶栏时收敛为 6px 边缘抓手；
+ * 2. 侧栏顶栏让出交通灯宽度（约 78px），支持大面积拖拽；
+ * 3. 会话顶栏：整行开启拖拽，特别将不可点击的当前会话标题（crumbCurrent）也赋予拖拽能力，大幅拓宽拖拽面积；
+ * 4. 交互控件精准隔离：只将真正的交互控件（Tab、按钮、链接、输入框等）设为 no-drag；
+ * 5. 模态弹窗深度隔离：弹窗存在时彻底静默所有背景拖拽，保证设置中心与「打开配置文件」等 100% 灵敏；
+ * 6. 顶栏双击放大变小由 preload 的 dblclick 监听器安全接管，与拖拽区域彻底解绑。
  */
 function setupMacWindowDrag(win) {
   if (process.platform !== 'darwin') return
 
   const titlebarCss = `
-    /* macOS 沉浸式标题栏顶层拖拽条：仅在无会话顶栏时（如新会话空白页）激活，有 header 时隐藏以防阻挡交互 */
+    /* 1. 顶部兜底拖拽条：新会话空白页时 38px 宽裕拖拽，有会话顶栏时收敛为 6px 边缘微缝 */
     #jackdsh-titlebar-drag-strip {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       height: 38px;
-      z-index: 1;
+      z-index: 10;
       -webkit-app-region: drag;
     }
-    :has(header) #jackdsh-titlebar-drag-strip,
-    :has([class*="wSkVaW_header"]) #jackdsh-titlebar-drag-strip {
-      display: none !important;
+    :has(header:not([class*="headerHidden"])) #jackdsh-titlebar-drag-strip,
+    :has([class*="wSkVaW_header"]:not([class*="headerHidden"])) #jackdsh-titlebar-drag-strip {
+      height: 6px;
     }
 
-    /* 侧栏顶栏：允许拖拽，展开时让出交通灯避让空间 */
+    /* 2. 侧栏顶栏：允许拖拽，展开时避让交通灯宽度（78px） */
     [class*="logoRow"] {
       -webkit-app-region: drag !important;
     }
@@ -109,28 +132,30 @@ function setupMacWindowDrag(win) {
       margin-top: 28px !important;
     }
 
-    /* 侧栏顶栏内交互元素禁止拖拽（保持点击灵敏，严禁设置全局 z-index） */
+    /* 侧栏顶栏内交互元素禁止拖拽（保持折叠按钮等点击灵敏） */
     [class*="logoRow"] button,
     [class*="logoRow"] a,
-    [class*="logoRow"] input {
+    [class*="logoRow"] input,
+    [class*="logoRow"] [role="button"] {
       -webkit-app-region: no-drag !important;
     }
 
-    /* 会话顶栏区域允许拖拽 */
+    /* 3. 会话顶栏区域：允许整行与留白区域顺畅拖拽 */
     header,
     [class*="wSkVaW_header"] {
       -webkit-app-region: drag !important;
     }
 
-    /* =========================================================================
-     * 防穿透与交互保护（参考 Electron 开源最佳实践，彻底解决弹窗关闭叉、配置按钮无法点击等问题）
-     * 1. 全局交互元素（按钮、输入框、菜单、链接等）设置 no-drag，确保点击 100% 灵敏；
-     * 2. 所有模态弹窗、对话框、蒙版及其所有子孙元素强制设为 no-drag，防止被底层 header 拖拽击穿；
-     * 3. 模态互斥：只要页面中出现任何 dialog / overlay / modal，立即自动冻结背景顶栏与兜底拖拽条。
-     * ========================================================================= */
+    /* 会话标题文字：当前会话标题是不可点击的展示文本，明确赋予拖拽能力，随手抓取即可移动窗口 */
+    [class*="crumbCurrent"],
+    [class*="wSkVaW_crumbCurrent"],
+    button[class*="crumb"][disabled] {
+      -webkit-app-region: drag !important;
+      cursor: default !important;
+    }
 
-    /* 全局交互元素：天生具备最高点击权，绝不允许被拖拽劫持 */
-    button,
+    /* 4. 交互控件精准隔离（绝不误杀容器留白，确保点击 100% 灵敏） */
+    button:not([class*="crumbCurrent"]):not([disabled][class*="crumb"]),
     a,
     input,
     select,
@@ -138,34 +163,34 @@ function setupMacWindowDrag(win) {
     [role="button"],
     [role="tab"],
     [role="menuitem"],
-    [class*="crumb"],
+    [role="combobox"],
     [class*="iconButton"],
     [class*="close"],
-    [class*="actions"] {
+    [class*="actions"],
+    [class*="tab"]:not([class*="crumbCurrent"]),
+    [class*="wSkVaW_tab"],
+    [class*="headerActions"] button,
+    [class*="headerUtilities"] button {
       -webkit-app-region: no-drag !important;
     }
 
-    /* 所有模态弹窗（设置、目录选择、预设、导出等）及其内部所有元素完全脱离拖拽区 */
+    /* 5. 模态弹窗绝对防护（设置中心、打开配置文件、目录选择、导出等） */
     [role="dialog"],
     [role="dialog"] *,
-    [role="presentation"],
-    [class*="overlay"],
-    [class*="mask"],
-    [class*="panel"],
-    [class*="modal"] {
+    [aria-modal="true"],
+    [aria-modal="true"] * {
       -webkit-app-region: no-drag !important;
     }
 
-    /* 模态互斥：弹窗存在时动态冻结背景的拖拽条与顶栏 */
+    /* 模态互斥：只要存在真实的弹窗，立刻隐藏顶部遮罩条并冻结背景拖拽 */
     body:has([role="dialog"]) #jackdsh-titlebar-drag-strip,
+    body:has([aria-modal="true"]) #jackdsh-titlebar-drag-strip {
+      display: none !important;
+    }
     body:has([role="dialog"]) header,
     body:has([role="dialog"]) [class*="wSkVaW_header"],
-    body:has([class*="overlay"]) #jackdsh-titlebar-drag-strip,
-    body:has([class*="overlay"]) header,
-    body:has([class*="overlay"]) [class*="wSkVaW_header"],
-    body:has([class*="modal"]) #jackdsh-titlebar-drag-strip,
-    body:has([class*="modal"]) header,
-    body:has([class*="modal"]) [class*="wSkVaW_header"] {
+    body:has([aria-modal="true"]) header,
+    body:has([aria-modal="true"]) [class*="wSkVaW_header"] {
       -webkit-app-region: no-drag !important;
     }
   `
@@ -415,7 +440,9 @@ async function createWindow() {
     title: 'JackDSH',
     backgroundColor: '#18181b',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    trafficLightPosition: process.platform === 'darwin' ? { x: 16, y: 12 } : undefined,
     webPreferences: {
+      preload: join(__dirname, '../preload/preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
     },

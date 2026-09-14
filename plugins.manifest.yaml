@@ -58,6 +58,12 @@ plugins:
   - name: dsh-autostart
     repo: https://github.com/JackAIStudio/dsh-autostart.git
     ref: main
+  - name: dsh-browser-attach
+    repo: https://github.com/JackAIStudio/dsh-browser-attach.git
+    ref: main
+  - name: dsh-cmdj-toggle
+    repo: https://github.com/JackAIStudio/dsh-cmdj-toggle.git
+    ref: main
   # 社区开源精选插件（npm 公开发行包，开箱即用预装）
   - name: "@mlgbnb/dsh-archive-manager"
     npm: "@mlgbnb/dsh-archive-manager@1.0.7"
