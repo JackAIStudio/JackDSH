@@ -70,19 +70,9 @@ mac:
   gatekeeperAssess: false
 
 win:
-  # Windows 优先提供绿色免安装便携版（解压即用、零污染）与标准安装版
+  # Windows 仅提供纯净绿色免安装便携版（解压即用、零污染注册表、适合随身携带与安全审计）
   target:
     - target: zip
       arch:
         - x64
-    - target: nsis
-      arch:
-        - x64
   artifactName: "${productName}-${version}-Windows-portable.${ext}"
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
-  createDesktopShortcut: always
-  createStartMenuShortcut: true
-  artifactName: "${productName}-${version}-Windows-Setup.${ext}"

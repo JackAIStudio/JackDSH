@@ -82,7 +82,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: node scripts/build.js --mac
 
-      - name: Build Windows Artifacts (.exe)
+      - name: Build Windows Artifacts (Portable .zip)
         if: matrix.os == 'windows-latest'
         run: node scripts/build.js --win
 
@@ -91,9 +91,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          NOTES_ARG=""
+          if [ -f "RELEASE_NOTES_${{ github.ref_name }}.md" ]; then
+            NOTES_ARG="--notes-file RELEASE_NOTES_${{ github.ref_name }}.md"
+          fi
           gh release create "${{ github.ref_name }}" \
-            --title "🚀 JackDSH ${{ github.ref_name }} — 手机远程公网中转检测、多环境配对探查认领与防互踢加固" \
-            --notes-file RELEASE_NOTES_v9.14.8.md \
+            --title "🚀 JackDSH ${{ github.ref_name }}" \
+            $NOTES_ARG \
             --draft=false 2>/dev/null || true
           gh release upload "${{ github.ref_name }}" release/*.dmg --clobber
 
@@ -103,8 +107,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
+          NOTES_ARG=""
+          if [ -f "RELEASE_NOTES_${{ github.ref_name }}.md" ]; then
+            NOTES_ARG="--notes-file RELEASE_NOTES_${{ github.ref_name }}.md"
+          fi
           gh release create "${{ github.ref_name }}" \
-            --title "🚀 JackDSH ${{ github.ref_name }} — 手机远程公网中转检测、多环境配对探查认领与防互踢加固" \
-            --notes-file RELEASE_NOTES_v9.14.8.md \
+            --title "🚀 JackDSH ${{ github.ref_name }}" \
+            $NOTES_ARG \
             --draft=false 2>/dev/null || true
-          gh release upload "${{ github.ref_name }}" release/*.exe release/*.zip --clobber
+          gh release upload "${{ github.ref_name }}" release/*.zip --clobber
