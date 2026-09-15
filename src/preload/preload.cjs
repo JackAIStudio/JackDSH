@@ -1,11 +1,43 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, webFrame } = require('electron')
 
-// 暴露只读 native 窗口能力（备用）
+// 暴露 native 窗口与 Dock 角标能力（不弹系统横幅、不申请通知权限）
 try {
   contextBridge.exposeInMainWorld('jackdshNative', {
+    isJackDSH: true,
     toggleMaximize: () => ipcRenderer.send('jackdsh:window-toggle-maximize'),
+    setBadge: (count) => {
+      ipcRenderer.send('jackdsh:set-badge', count)
+    },
+    clearBadge: () => {
+      ipcRenderer.send('jackdsh:set-badge', 0)
+    },
+    onWindowFocused: (cb) => {
+      ipcRenderer.on('jackdsh:window-focused', () => {
+        try { cb?.() } catch {}
+      })
+    },
   })
-} catch {}
+} catch (err) {
+  console.error('[JackDSH Preload] Failed to expose jackdshNative:', err)
+}
+
+// W3C Badging API → 原生 Dock / 任务栏角标（Chrome PWA 与插件共用同一条路径）
+try {
+  webFrame.executeJavaScript(`
+    if (typeof navigator !== 'undefined') {
+      navigator.setAppBadge = (count) => {
+        window.jackdshNative?.setBadge(count);
+        return Promise.resolve();
+      };
+      navigator.clearAppBadge = () => {
+        window.jackdshNative?.clearBadge();
+        return Promise.resolve();
+      };
+    }
+  `)
+} catch (err) {
+  console.error('[JackDSH Preload] Failed to polyfill navigator.setAppBadge:', err)
+}
 
 // 智能监听窗口顶部双击事件：彻底保障「双击变大变小」100% 随时随地生效
 window.addEventListener('DOMContentLoaded', () => {

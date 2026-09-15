@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, Tray, shell, dialog, clipboard, ipcMain } from 'electron'
-import { existsSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findFreePort } from './port-finder.js'
@@ -91,6 +91,33 @@ ipcMain.on('jackdsh:window-toggle-maximize', (event) => {
       win.maximize()
     }
   }
+})
+
+// ==================== 原生 Dock 未读红点角标管理 ====================
+
+/**
+ * 设置或清空应用程序的程序坞未读红点角标（Badge）
+ * 极简免权限设计：在 macOS 上基于 NSDockTile 原生特性，100% 免系统授权，零打扰、开箱即用
+ */
+function updateAppBadge(count) {
+  const num = Math.max(0, Math.floor(Number(count) || 0))
+
+  // 1. 系统级原生 setBadgeCount (Electron 官方跨平台 API)
+  if (typeof app.setBadgeCount === 'function') {
+    try { app.setBadgeCount(num) } catch {}
+  }
+
+  // 2. macOS 原生 app.dock.setBadge（纯正红底白字数字标，免授权、零打扰）
+  if (process.platform === 'darwin' && app.dock) {
+    try {
+      app.dock.setBadge(num > 0 ? String(num) : '')
+    } catch {}
+  }
+}
+
+// 全局响应应用未读通知角标设置事件
+ipcMain.on('jackdsh:set-badge', (_event, count) => {
+  updateAppBadge(count)
 })
 
 /**
@@ -450,6 +477,27 @@ async function createWindow() {
 
   setupMacWindowDrag(mainWindow)
   setupApplicationMenu(mainWindow)
+
+  // 监听网页标题变化，仅当标题中含有未读计数 "(N)" 时单向同步至系统角标
+  // 关键：当 count === 0 时绝不清空角标！因为 React 单页应用会在会话渲染完成时频繁重置 document.title，
+  // 若在此处清零会瞬间将刚设置好的未读数字抹除。角标清零必须且仅由窗口聚焦激活（focus）或显式清空指令触发。
+  mainWindow.on('page-title-updated', (_event, title) => {
+    const match = (title || '').match(/^\((\d+)\)/)
+    const count = match ? parseInt(match[1], 10) : 0
+    if (count > 0) {
+      updateAppBadge(count)
+    }
+  })
+
+  // 窗口聚焦激活时自动清空系统角标并通知渲染层
+  mainWindow.on('focus', () => {
+    updateAppBadge(0)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      try {
+        mainWindow.webContents.send('jackdsh:window-focused')
+      } catch {}
+    }
+  })
 
   // 外部链接默认用系统默认浏览器打开
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
