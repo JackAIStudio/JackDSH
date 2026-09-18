@@ -16,6 +16,21 @@ let serverManager = null
 let serverUrl = ''
 
 const isPortable = process.argv.includes('--portable') || Boolean(process.env.DSH_PORTABLE)
+const isPreview = process.env.JACKDSH_ENV === 'preview'
+  || app.getName().includes('Preview')
+  || process.execPath.includes('Preview')
+  || (process.resourcesPath && process.resourcesPath.includes('Preview'))
+  || process.argv.includes('--preview')
+
+// 设置应用身份标识与单实例命名空间（Preview 与 Prod 拥有独立数据目录与单实例锁，支持双开互不干扰）
+if (isPreview) {
+  app.setName('JackDSH Preview')
+  const previewUserData = join(app.getPath('appData'), 'jackdsh-preview')
+  app.setPath('userData', previewUserData)
+  app.setAppUserModelId('com.jackaistudio.jackdsh.preview')
+} else {
+  app.setAppUserModelId('com.jackaistudio.jackdsh')
+}
 
 /**
  * 跨平台首次启动数据存储引导与外接盘容错保护
@@ -59,8 +74,8 @@ async function checkDataDirectory(userDataPath) {
   mkdirSync(defaultPath, { recursive: true })
 }
 
-// 单实例锁：防止多开或子进程误开导致 Dock 图标泛滥
-const gotTheLock = app.requestSingleInstanceLock()
+// 单实例锁：防止同通道多开或子进程误开导致 Dock 图标泛滥（Preview 与 Prod 拥有独立通道锁，支持双开互不干扰）
+const gotTheLock = app.requestSingleInstanceLock({ channel: isPreview ? 'preview' : 'prod' })
 if (!gotTheLock) {
   app.quit()
 } else {
@@ -446,11 +461,13 @@ function setupApplicationMenu(win) {
 }
 
 async function createWindow() {
-  const freePort = await findFreePort(3180)
+  const defaultPort = isPreview ? 3280 : 3180
+  const freePort = await findFreePort(defaultPort)
 
   serverManager = new ServerManager({
     port: freePort,
     isPortable,
+    isPreview,
     appDataPath: app.getPath('userData'),
     runtimePath: app.isPackaged
       ? join(process.resourcesPath, 'runtime')
@@ -464,7 +481,7 @@ async function createWindow() {
     height: 850,
     minWidth: 900,
     minHeight: 600,
-    title: 'JackDSH',
+    title: isPreview ? 'JackDSH Preview (DSH 0.1.5-rc.2)' : 'JackDSH',
     backgroundColor: '#18181b',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     trafficLightPosition: process.platform === 'darwin' ? { x: 16, y: 12 } : undefined,
@@ -530,9 +547,9 @@ async function createWindow() {
 app.whenReady().then(async () => {
   try {
     app.setAboutPanelOptions({
-      applicationName: 'JackDSH',
+      applicationName: isPreview ? 'JackDSH Preview' : 'JackDSH',
       applicationVersion: `v${app.getVersion()}`,
-      version: 'DeepSeek Harness 底座 v0.1.2-rc.1',
+      version: 'DeepSeek Harness 底座 v0.1.5-rc.2',
       copyright: 'JackAIStudio · 基于 DeepSeek Harness 官方框架构建',
     })
     await checkDataDirectory(app.getPath('userData'))

@@ -1,0 +1,69 @@
+appId: com.jackaistudio.jackdsh.preview
+productName: JackDSH Preview
+npmRebuild: false
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - "src/**/*"
+  - "config-templates/**/*"
+  - "package.json"
+
+extraResources:
+  - from: "bundle-runtime/"
+    to: "runtime"
+    filter:
+      - "**/*"
+  - from: "node_modules/"
+    to: "node_modules"
+    filter:
+      - "!**/* 2*"
+      - "!**/.bin/**"
+      - "!**/*.md"
+      - "!**/*.ts"
+      - "!**/*.map"
+      - "!.pnpm/**"
+      - "!.pnpm*/**"
+      - "!.pnpm-workspace-state-v1.json"
+      - "!**/node-pty/build/node_gyp_bins/**"
+      - "!electron/**"
+      - "!electron-builder/**"
+      - "!app-builder-lib/**"
+      - "!app-builder-bin/**"
+      - "!builder-util/**"
+      - "!dmg-builder/**"
+      - "!electron-publish/**"
+      - "!7zip-bin/**"
+      - "!typescript/**"
+      - "!@img/sharp-libvips-linux*/**"
+      - "!@img/sharp-libvips-win32*/**"
+      - "!@img/sharp-libvips-darwin-x64/**"
+      - "!@img/sharp-linux*/**"
+      - "!@img/sharp-win32*/**"
+      - "!@img/sharp-darwin-x64/**"
+      - "!@img/sharp-wasm32/**"
+      - "!@img/sharp-freebsd*/**"
+      - "!@vscode/ripgrep-linux*/**"
+      - "!@vscode/ripgrep-win32*/**"
+      - "!@vscode/ripgrep-darwin-x64/**"
+      - "!@deepseek-ai/node-addon-system-linux*/**"
+      - "!@deepseek-ai/node-addon-system-win32*/**"
+      - "!@deepseek-ai/node-addon-system-darwin-x64/**"
+
+mac:
+  category: public.app-category.developer-tools
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  artifactName: "JackDSH-Preview-${version}-Mac-arm64.${ext}"
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+win:
+  target:
+    - target: zip
+      arch:
+        - x64
+  artifactName: "JackDSH-Preview-${version}-Windows-portable.${ext}"

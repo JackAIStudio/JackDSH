@@ -6,17 +6,22 @@ import { spawnSync } from 'node:child_process'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const args = process.argv.slice(2)
+const rawArgs = process.argv.slice(2)
+const isPreview = rawArgs.includes('--preview')
+const args = rawArgs.filter((a) => a !== '--preview')
+
 const out =
   process.env.DSH_BUILD_OUT ||
   (process.env.CI ? 'release' : join(homedir(), '.jds-build-out'))
 
-console.log(`📦 electron-builder ${args.join(' ')} -> output: ${out}`)
+const configFile = isPreview ? 'electron-builder.preview.yml' : 'electron-builder.yml'
+
+console.log(`📦 electron-builder ${args.join(' ')} ${isPreview ? '(Channel: PREVIEW) ' : ''}-> output: ${out}`)
 // --publish never：发布由 workflow 的 action-gh-release 负责，
 // 禁掉 electron-builder 自带的 GitHub publish（否则它要 GH_TOKEN 并重复发版）
 const result = spawnSync(
   'npx',
-  ['electron-builder', ...args, `-c.directories.output=${out}`, '--publish', 'never'],
+  ['electron-builder', ...args, `--config=${configFile}`, `-c.directories.output=${out}`, '--publish', 'never'],
   { stdio: 'inherit', shell: true }
 )
 process.exit(result.status ?? 1)

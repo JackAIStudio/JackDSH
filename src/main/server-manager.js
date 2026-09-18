@@ -19,6 +19,7 @@ export class ServerManager {
   constructor(options) {
     this.port = options.port
     this.isPortable = Boolean(options.isPortable)
+    this.isPreview = Boolean(options.isPreview)
     this.childProcess = null
     this.runtimePath = options.runtimePath || join(__dirname, '../../bundle-runtime')
 
@@ -94,8 +95,10 @@ export class ServerManager {
     const d = String(now.getDate()).padStart(2, '0')
     const today = `${y}-${m}-${d}`
 
+    const rootDirName = this.isPreview ? 'JackDSH-Preview' : 'JackDSH'
+
     if (this.isPortable) {
-      const portableDays = join(this.dshHome, 'JackDSH', 'days', today)
+      const portableDays = join(this.dshHome, rootDirName, 'days', today)
       try {
         mkdirSync(portableDays, { recursive: true })
         return portableDays
@@ -106,7 +109,7 @@ export class ServerManager {
 
     const docDir = join(homedir(), 'Documents')
     if (existsSync(docDir)) {
-      const todayDir = join(docDir, 'JackDSH', 'days', today)
+      const todayDir = join(docDir, rootDirName, 'days', today)
       try {
         mkdirSync(todayDir, { recursive: true })
         return todayDir
@@ -115,7 +118,7 @@ export class ServerManager {
       }
     }
 
-    const fallbackDir = join(homedir(), 'JackDSH', 'days', today)
+    const fallbackDir = join(homedir(), rootDirName, 'days', today)
     try {
       mkdirSync(fallbackDir, { recursive: true })
       return fallbackDir
@@ -545,6 +548,7 @@ export class ServerManager {
       DSH_DESKTOP_ISOLATED: '1',
       NODE_ENV: 'production',
       JACKDSH_VERSION: appVersion,
+      JACKDSH_ENV: this.isPreview ? 'preview' : 'production',
       ...(this.isPortable ? {
         JACKDSH_PORTABLE_ROOT: this.dshHome,
         DSH_IS_PORTABLE: '1',

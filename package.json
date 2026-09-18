@@ -17,6 +17,8 @@
     "test:sandbox": "node scripts/test-sandbox-run.js",
     "build:mac": "node scripts/prepare-bundle.js && node scripts/build.js --mac",
     "build:mac:fast": "node scripts/prepare-bundle.js && node scripts/build.js --mac --arm64",
+    "build:mac:preview": "node scripts/prepare-bundle.js && node scripts/build.js --mac --arm64 --preview",
+    "dev:preview": "node scripts/prepare-bundle.js && JACKDSH_ENV=preview electron . --preview",
     "build:win": "node scripts/prepare-bundle.js && node scripts/build.js --win",
     "build:all": "node scripts/prepare-bundle.js && node scripts/build.js -mw"
   },
