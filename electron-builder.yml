@@ -56,6 +56,9 @@ extraResources:
       - "!@vscode/ripgrep-linux*/**"
       - "!@vscode/ripgrep-win32*/**"
       - "!@vscode/ripgrep-darwin-x64/**"
+      - "!@deepseek-ai/node-addon-system-linux*/**"
+      - "!@deepseek-ai/node-addon-system-win32*/**"
+      - "!@deepseek-ai/node-addon-system-darwin-x64/**"
 
 mac:
   category: public.app-category.developer-tools

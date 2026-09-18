@@ -124,6 +124,7 @@ for (const entry of manifest) {
       // 过滤规则：严禁打包 .git, .env, credentials, 缓存, 会话
       const base = srcPath.split(/[/\\]/).pop() || ''
       if (base === '.git' || base === '.DS_Store' || base === 'node_modules') return false
+      if (base === 'test' || base === 'tests' || base === '__tests__') return false
       if (base.startsWith('.env') || base.includes('credential') || base.includes('token.json')) return false
       if (base === '.dsh-mobile-inbox') return false
       return true
