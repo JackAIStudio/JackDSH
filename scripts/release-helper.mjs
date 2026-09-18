@@ -12,8 +12,9 @@
 
 import { readdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
+import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { execFile } from 'node:child_process'
+import { execFile, execSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import { scanAllPlugins } from './scan-plugins-status.mjs'
 
@@ -36,7 +37,7 @@ async function git(cwd, args) {
  * 1. 发版门禁检查 (preflight)
  */
 export async function runPreflight(options = {}) {
-  console.log('🔍 [1/3] 正在执行插件生态 Git 与同步门禁检查...')
+  console.log('🔍 [1/4] 正在执行插件生态 Git 与同步门禁检查...')
   const scanResult = await scanAllPlugins({ fetch: Boolean(options.fetch) })
   
   const blockers = []
@@ -62,7 +63,7 @@ export async function runPreflight(options = {}) {
   }
 
   // 检查 JackDSH 自身仓库状态
-  console.log('🔍 [2/3] 正在检查 JackDSH 自身仓库状态...')
+  console.log('🔍 [2/4] 正在检查 JackDSH 自身仓库状态...')
   const statusRes = await git(jackDshDir, ['status', '--porcelain'])
   const dshDirty = statusRes.ok && statusRes.stdout
     ? statusRes.stdout.split('\n').filter(Boolean)
@@ -72,7 +73,7 @@ export async function runPreflight(options = {}) {
   }
 
   // 检查已打包插件与清单对齐（忽略已废弃/归档的历史插件）
-  console.log('🔍 [3/3] 正在校验 plugins.manifest.yaml 清单完整性...')
+  console.log('🔍 [3/4] 正在校验 plugins.manifest.yaml 清单完整性...')
   const DEPRECATED_PLUGINS = new Set([
     'dsh-better-sidebar',
     'dsh-browser-attach',
@@ -83,6 +84,54 @@ export async function runPreflight(options = {}) {
   const missingInManifest = scanResult.plugins.filter((p) => p.isGit && !p.inManifest && !DEPRECATED_PLUGINS.has(p.name))
   if (missingInManifest.length > 0) {
     warnings.push(`以下自研插件未在 plugins.manifest.yaml 声明: ${missingInManifest.map((p) => p.name).join(', ')}`)
+  }
+
+  // 检查存量会话跨版本迁移能力 (Migration Smoke Test)
+  console.log('🔍 [4/4] 正在执行存量历史会话跨版本迁移冒烟门禁 (Migration Smoke Test)...')
+  const sessionsRoot = join(homedir(), 'Library/Application Support/jackdsh/dsh-data/sessions')
+  if (existsSync(sessionsRoot)) {
+    try {
+      const { sessionFormatCatalog } = await import('@deepseek-ai/dsh-session-format-catalog')
+      const dayDirs = readdirSync(sessionsRoot, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => join(sessionsRoot, d.name))
+      const sampleSessions = dayDirs.flatMap((dayDir) => {
+        return readdirSync(dayDir, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => join(dayDir, d.name))
+      })
+
+      let migrationFailures = 0
+      for (const sDir of sampleSessions) {
+        const v0 = join(sDir, 'session.jsonl.zstd')
+        const v3 = join(sDir, 'session.v3.jsonl.zstd')
+        if (existsSync(v3) || !existsSync(v0)) continue
+        try {
+          const rawText = execSync(`zstd -dc "${v0}"`, { maxBuffer: 50 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] }).toString('utf8')
+          const lines = rawText.trim().split('\n')
+          if (lines.length === 0) continue
+          const header = JSON.parse(lines[0])
+          const restore = sessionFormatCatalog.createRestore(header, { recovery: false, validation: 'current' })
+          for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue
+            restore.decodeRow(JSON.parse(lines[i]))
+          }
+          restore.finish()
+        } catch (mErr) {
+          const isRefusal = mErr.message.includes('refuses this format') || mErr.message.includes('unexpected member');
+          if (isRefusal) {
+            migrationFailures++
+            blockers.push(`会话格式白名单拒绝 (Refusal): ${sDir.split('/').pop()} (${mErr.message})`)
+            if (migrationFailures >= 3) break
+          }
+        }
+      }
+      if (migrationFailures === 0) {
+        console.log('  ✅ 存量历史会话迁移冒烟门禁全部通过！')
+      }
+    } catch (e) {
+      warnings.push(`无法执行会话迁移门禁检查: ${e.message}`)
+    }
   }
 
   const passed = blockers.length === 0
