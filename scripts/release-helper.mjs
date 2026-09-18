@@ -71,9 +71,16 @@ export async function runPreflight(options = {}) {
     warnings.push(`JackDSH 仓库自身有未提交的改动: ${dshDirty.slice(0, 3).join(', ')}`)
   }
 
-  // 检查已打包插件与清单对齐
+  // 检查已打包插件与清单对齐（忽略已废弃/归档的历史插件）
   console.log('🔍 [3/3] 正在校验 plugins.manifest.yaml 清单完整性...')
-  const missingInManifest = scanResult.plugins.filter((p) => p.isGit && !p.inManifest)
+  const DEPRECATED_PLUGINS = new Set([
+    'dsh-better-sidebar',
+    'dsh-browser-attach',
+    'dsh-cmdj-toggle',
+    'dsh-codex-timeline',
+    'dsh-swarm-link',
+  ])
+  const missingInManifest = scanResult.plugins.filter((p) => p.isGit && !p.inManifest && !DEPRECATED_PLUGINS.has(p.name))
   if (missingInManifest.length > 0) {
     warnings.push(`以下自研插件未在 plugins.manifest.yaml 声明: ${missingInManifest.map((p) => p.name).join(', ')}`)
   }

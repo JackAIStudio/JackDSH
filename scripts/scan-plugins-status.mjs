@@ -24,6 +24,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const jackDshDir = resolve(__dirname, '..')
 const defaultPluginsDir = resolve(jackDshDir, '../plugins')
 
+// 历史/已废弃插件集合（源码已同步 GitHub 存档，默认不在活跃大盘中展示）
+export const DEPRECATED_PLUGINS = new Set([
+  'dsh-better-sidebar',
+  'dsh-browser-attach',
+  'dsh-cmdj-toggle',
+  'dsh-codex-timeline',
+  'dsh-swarm-link',
+])
+
 // 解析 plugins.manifest.yaml 中的插件名单
 function readManifestPlugins() {
   const manifestPath = join(jackDshDir, 'plugins.manifest.yaml')
@@ -157,9 +166,13 @@ export async function scanAllPlugins(options = {}) {
 
   const manifestPlugins = readManifestPlugins()
   const entries = readdirSync(pluginsDir, { withFileTypes: true })
-  const pluginDirs = entries
+  let pluginDirs = entries
     .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
     .map((e) => join(pluginsDir, e.name))
+
+  if (!options.all) {
+    pluginDirs = pluginDirs.filter((d) => !DEPRECATED_PLUGINS.has(d.split('/').pop()))
+  }
 
   // 并发探测
   const results = await Promise.all(
