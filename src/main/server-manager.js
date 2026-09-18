@@ -453,6 +453,18 @@ export class ServerManager {
         changed = true
       }
 
+      // Gemini 插件代理设置自愈保护：国内请求 Google API 必须走本地代理
+      if (!raw.includes('id: llm-gemini-oauth')) {
+        const geminiBlock = [
+          '# Gemini 插件代理设置（自动配置本地 Clash 代理端口）',
+          '- id: llm-gemini-oauth',
+          '  config:',
+          '    proxy: 127.0.0.1:7897',
+        ].join('\n')
+        raw = raw.trim() && raw.trim() !== '[]' ? `${raw.trimEnd()}\n\n${geminiBlock}\n` : `${geminiBlock}\n`
+        changed = true
+      }
+
       // 手机远程公网中转配置同步注入
       const relayConfig = this.getRelayConfig()
       const mobilePlusMarker = '- id: dsh-mobile-plus'
