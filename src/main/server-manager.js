@@ -250,11 +250,20 @@ export class ServerManager {
       for (const file of ['preset.yml', 'agent.cordis.yml']) {
         const dest = join(jackPresetDir, file)
         const src = join(templatePresetDir, file)
-        if (!existsSync(dest) && existsSync(src)) {
-          try {
-            copyFileSync(src, dest)
-          } catch (err) {
-            console.warn(`[ServerManager] failed to copy preset file ${file}: ${err.message}`)
+        if (existsSync(src)) {
+          let needCopy = !existsSync(dest)
+          if (!needCopy && file === 'agent.cordis.yml') {
+            try {
+              const content = readFileSync(dest, 'utf8')
+              if (content.includes('text: >-')) needCopy = true
+            } catch {}
+          }
+          if (needCopy) {
+            try {
+              copyFileSync(src, dest)
+            } catch (err) {
+              console.warn(`[ServerManager] failed to copy preset file ${file}: ${err.message}`)
+            }
           }
         }
       }
