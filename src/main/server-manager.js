@@ -427,7 +427,9 @@ export class ServerManager {
       "  name: '@deepseek-ai/dsh-host-directory-picker-browse'",
     ].join('\n')
     const clientHmrBlock = [
-      '# 禁用官方客户端热重载 SSE 通道，彻底避免单端口多标签连接耗尽',
+      '# 关掉官方 client-hmr（每标签一条 EventSource /plugins/events）。',
+      '# 0.1.5 主通道已是 WebSocket，3 标签死锁不再成立；但 HMR 自己仍占 HTTP/1.1 槽。',
+      '# 生产态不改 client.js，关着换多开会话标签。开发态要热重载再改成 false。',
       '- id: client-hmr',
       '  disabled: true',
     ].join('\n')
