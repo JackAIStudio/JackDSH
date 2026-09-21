@@ -192,7 +192,7 @@ function prepareBskCli(targetDir, manifestList) {
   }
 
   for (const t of targets) {
-    const cachedBinary = join(bskCacheRoot, t.id, t.fileName)
+    const cachedBinary = join(bskCacheRoot, `v${bskVersion}`, t.id, t.fileName)
     const targetPlatformDir = join(binDir, t.id)
     mkdirSync(targetPlatformDir, { recursive: true })
     const destInPlatform = join(targetPlatformDir, t.fileName)
