@@ -21,6 +21,8 @@ export const OWN_PLUGINS = [
   'dsh-workbuddy-dual',
   'dsh-paste-path',
   'dsh-autostart',
+  'dsh-turn-bookmarks',
+  'dsh-image-fit',
 ]
 
 /**

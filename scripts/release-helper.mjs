@@ -80,6 +80,7 @@ export async function runPreflight(options = {}) {
     'dsh-cmdj-toggle',
     'dsh-codex-timeline',
     'dsh-swarm-link',
+    'dsh-cut-studio',
   ])
   const missingInManifest = scanResult.plugins.filter((p) => p.isGit && !p.inManifest && !DEPRECATED_PLUGINS.has(p.name))
   if (missingInManifest.length > 0) {

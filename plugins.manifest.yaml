@@ -55,8 +55,19 @@ plugins:
   - name: dsh-autostart
     repo: https://github.com/JackAIStudio/dsh-autostart.git
     ref: main
+  - name: dsh-turn-bookmarks
+    repo: https://github.com/JackAIStudio/dsh-turn-bookmarks.git
+    ref: main
+  - name: dsh-image-fit
+    repo: https://github.com/JackAIStudio/dsh-image-fit.git
+    ref: main
+  # dsh-cut-studio：实验性插件，Web 形态成熟度不足，已暂停维护并归档。
+  # 源码备份于 https://github.com/JackAIStudio/dsh-cut-studio（PRIVATE + ARCHIVED），
+  # 刻意不纳入发行打包。该插件从未进入过本清单，此处仅作「有意排除」的留档说明，
+  # 以免日后误判为遗漏；其曾配套的原生独立窗口逻辑（main/index.js / preload.cjs）
+  # 也始终停留在未提交状态，从未进入任何发行版本。
   # 社区开源精选插件（npm 公开发行包，开箱即用预装）
   - name: "@mlgbnb/dsh-archive-manager"
     npm: "@mlgbnb/dsh-archive-manager@1.0.7"
   - name: "@wxg-prc-cpg/browser-skill-dsh-plugin"
-    npm: "@wxg-prc-cpg/browser-skill-dsh-plugin@0.2.1"
+    npm: "@wxg-prc-cpg/browser-skill-dsh-plugin@0.3.0"
