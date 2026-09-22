@@ -23,6 +23,7 @@ export const OWN_PLUGINS = [
   'dsh-autostart',
   'dsh-turn-bookmarks',
   'dsh-image-fit',
+  'dsh-fork-guard',
 ]
 
 /**

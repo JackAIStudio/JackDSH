@@ -61,6 +61,9 @@ plugins:
   - name: dsh-image-fit
     repo: https://github.com/JackAIStudio/dsh-image-fit.git
     ref: main
+  - name: dsh-fork-guard
+    repo: https://github.com/JackAIStudio/dsh-fork-guard.git
+    ref: main
   # dsh-cut-studio：实验性插件，Web 形态成熟度不足，已暂停维护并归档。
   # 源码备份于 https://github.com/JackAIStudio/dsh-cut-studio（PRIVATE + ARCHIVED），
   # 刻意不纳入发行打包。该插件从未进入过本清单，此处仅作「有意排除」的留档说明，
