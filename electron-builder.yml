@@ -44,6 +44,16 @@ extraResources:
       - "!electron-publish/**"
       - "!7zip-bin/**"
       - "!typescript/**"
+      # 本机开发态用 `pnpm link` 把 ../plugins/<name> 链进 node_modules 后，
+      # electron-builder 会把软链原样复制进包（目标在包外），codesign 对它直接
+      # 报错让整个打包失败：目标在包外时报 "bundle format unrecognized"，
+      # 顺着软链复制进来的 .git 里只读的 object 文件则报 "Permission denied"。
+      # CI 是干净检出、没有这些软链；发行包里的插件一律来自 bundle-runtime/
+      # （另一条 extraResources），与这里的 node_modules 副本无关。
+      - "!**/.git"
+      - "!**/.git/**"
+      - "!dsh-fork-guard"
+      - "!dsh-fork-guard/**"
       # 排除非 macOS 平台的预编译底层 C++ 库（防止全平台二进制撑爆包体）
       - "!@img/sharp-libvips-linux*/**"
       - "!@img/sharp-libvips-win32*/**"
