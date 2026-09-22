@@ -135,6 +135,14 @@ ipcMain.on('jackdsh:set-badge', (_event, count) => {
   updateAppBadge(count)
 })
 
+// 桌面版的「重启 Harness Web」由这个 App 重新拉起，新进程仍然是子进程。
+// 插件原来的做法是 detached 再拉起，退出 App 之后收不掉，下次就会抢会话锁。
+ipcMain.handle('jackdsh:restart-core', async () => {
+  if (!serverManager) throw new Error('后台服务还没启动')
+  await serverManager.restartCore()
+  return { ok: true, port: serverManager.port }
+})
+
 /**
  * 为 macOS 沉浸式标题栏（hiddenInset）注入精细化拖拽支持与交互防护：
  * 1. 顶部全局挂载弹性拖拽条：新会话空白页提供 38px 宽裕拖拽，有会话顶栏时收敛为 6px 边缘抓手；
@@ -462,10 +470,10 @@ function setupApplicationMenu(win) {
 
 async function createWindow() {
   const defaultPort = isPreview ? 3280 : 3180
-  const freePort = await findFreePort(defaultPort)
-
+  // 先按固定端口建管理器，让它清掉自己上次留下的孤儿服务，再回到这个端口。
+  // 开发态 3080 不在这个数据目录里，不会被清掉。
   serverManager = new ServerManager({
-    port: freePort,
+    port: defaultPort,
     isPortable,
     isPreview,
     appDataPath: app.getPath('userData'),
@@ -473,6 +481,9 @@ async function createWindow() {
       ? join(process.resourcesPath, 'runtime')
       : join(__dirname, '../../bundle-runtime'),
   })
+  await serverManager.reclaimOrphanCores()
+  const freePort = await findFreePort(defaultPort)
+  serverManager.port = freePort
 
   serverUrl = await serverManager.start()
 
@@ -591,10 +602,14 @@ app.whenReady().then(async () => {
   })
 })
 
-app.on('before-quit', () => {
-  if (serverManager) {
-    serverManager.stop()
-  }
+let coreStopStarted = false
+app.on('before-quit', (event) => {
+  if (!serverManager || coreStopStarted) return
+  coreStopStarted = true
+  event.preventDefault()
+  Promise.resolve(serverManager.stop())
+    .catch((error) => console.error('[JackDSH] stop failed', error))
+    .finally(() => app.quit())
 })
 
 app.on('window-all-closed', () => {

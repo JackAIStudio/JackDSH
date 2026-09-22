@@ -1,10 +1,16 @@
 import { fork, spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, copyFileSync, writeFileSync, readFileSync, lstatSync, readlinkSync, unlinkSync, symlinkSync, cpSync, createWriteStream, chmodSync } from 'node:fs'
 import { join, dirname, resolve } from 'node:path'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { OWN_PLUGINS, ALL_BUILTIN_PLUGINS } from './own-plugins.js'
 import { TunnelClient } from './tunnel-client.js'
+import net from 'node:net'
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -541,8 +547,24 @@ export class ServerManager {
    * @returns {Promise<string>} returns the web URL once ready
    */
   async start() {
+    return this.launchCore()
+  }
+
+  /**
+   * 重新拉起归这个 App 管的核心服务。新进程仍然是子进程，退出时收得掉。
+   */
+  async restartCore() {
+    if (this.childProcess && this.childProcess.exitCode === null && !this.childProcess.killed) {
+      await this.stopChild(this.childProcess)
+    }
+    await this.reclaimOrphanCores()
+    return this.launchCore()
+  }
+
+  async launchCore() {
     this.initIsolatedStorage()
     this.initIsolatedProfile()
+    await this.reclaimOrphanCores()
 
     const serverUrl = `http://127.0.0.1:${this.port}`
 
@@ -599,6 +621,8 @@ export class ServerManager {
     ], {
       env,
       cwd: this.defaultWorkspace,
+      // 必须留在这个 App 的进程树里。detached 之后，退出应用就收不掉它。
+      detached: false,
       stdio: ['ignore', 'pipe', 'pipe'],
     })
 
@@ -688,19 +712,176 @@ export class ServerManager {
   /**
    * Stop & clean up child process
    */
-  stop() {
+  async stop() {
     this.stopTunnelClient()
     if (this.childProcess && !this.childProcess.killed) {
-      try {
-        this.childProcess.kill('SIGTERM')
-      } catch {
-        try {
-          this.childProcess.kill('SIGKILL')
-        } catch {}
-      }
-      this.childProcess = null
+      await this.stopChild(this.childProcess)
     }
+    await this.reclaimOrphanCores()
   }
+
+  async stopChild(child) {
+    const pid = child && child.pid
+    try {
+      child.kill('SIGTERM')
+    } catch {}
+    const deadline = Date.now() + 3000
+    while (pid && isPidAlive(pid) && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    if (pid && isPidAlive(pid)) {
+      try { child.kill('SIGKILL') } catch {}
+      signalPid(pid, 'SIGKILL')
+    }
+    if (this.childProcess === child) this.childProcess = null
+    await this.waitForPortClosed(this.port, 3000)
+  }
+
+  /**
+   * 清掉这个数据目录里、已经没有活着的 JackDSH 窗口管着的旧核心。
+   * 开发态（~/.dsh、3080）的数据目录不同，不会被收掉。
+   */
+  async reclaimOrphanCores() {
+    const ownPid = this.childProcess && this.childProcess.pid
+    const victims = listOrphanCorePids(this.dshHome, process.pid)
+      .filter((pid) => pid !== ownPid)
+    for (const pid of victims) signalPid(pid, 'SIGTERM')
+    const deadline = Date.now() + 3000
+    let alive = victims.filter((pid) => isPidAlive(pid))
+    while (alive.length > 0 && Date.now() < deadline) {
+      await sleep(100)
+      alive = victims.filter((pid) => isPidAlive(pid))
+    }
+    for (const pid of alive) signalPid(pid, 'SIGKILL')
+    if (victims.length > 0) await this.waitForPortClosed(this.port, 3000)
+    return victims
+  }
+
+  waitForPortClosed(port, timeoutMs) {
+    const start = Date.now()
+    return new Promise((resolveClosed) => {
+      const probe = () => {
+        const socket = net.connect({ port, host: '127.0.0.1' })
+        let done = false
+        const finish = (closed) => {
+          if (done) return
+          done = true
+          socket.destroy()
+          if (closed || Date.now() - start >= timeoutMs) resolveClosed(closed)
+          else setTimeout(probe, 100)
+        }
+        socket.once('connect', () => finish(false))
+        socket.once('error', () => finish(true))
+        socket.setTimeout(200, () => finish(false))
+      }
+      probe()
+    })
+  }
+}
+
+export function isPidAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return Boolean(error && error.code === 'EPERM')
+  }
+}
+
+export function signalPid(pid, signal) {
+  if (!Number.isInteger(pid) || pid <= 0) return false
+  try {
+    process.kill(pid, signal)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 找出属于这个 DSH_HOME、但父进程已经不是活着的 JackDSH 窗口的 dsh web。
+ * 只看命令行里带 bin.js web 且环境变量 DSH_HOME 对得上的进程。
+ */
+export function listOrphanCorePids(dshHome, selfPid = process.pid) {
+  if (process.platform === 'win32' || !dshHome) return []
+  let raw = ''
+  try {
+    raw = execFileSync('ps', ['-ax', '-o', 'pid=,ppid=,command='], { encoding: 'utf8', timeout: 3000 })
+  } catch {
+    return []
+  }
+  const rows = []
+  for (const line of raw.split('\n')) {
+    const match = line.trim().match(/^(\d+)\s+(\d+)\s+(.*)$/)
+    if (!match) continue
+    rows.push({ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] })
+  }
+  const byPid = new Map(rows.map((row) => [row.pid, row]))
+  const victims = []
+  for (const row of rows) {
+    if (row.pid === selfPid) continue
+    if (!/\bbin\.js\b/.test(row.command) || !/\bweb\b/.test(row.command)) continue
+    const envHome = readProcessEnv(row.pid, 'DSH_HOME')
+    if (!envHome || resolve(envHome) !== resolve(dshHome)) continue
+    if (hasLiveAppAncestor(row.ppid, byPid, selfPid)) continue
+    victims.push(row.pid)
+  }
+  return victims
+}
+
+export function hasLiveAppAncestor(pid, byPid, selfPid) {
+  const seen = new Set()
+  let current = pid
+  while (current > 1 && !seen.has(current)) {
+    seen.add(current)
+    if (current === selfPid) return true
+    const row = byPid.get(current)
+    if (!row) return false
+    if (isAppShellCommand(row.command)) return true
+    current = row.ppid
+  }
+  return false
+}
+
+function isAppShellCommand(command) {
+  if (/\bbin\.js\b/.test(command)) return false
+  return /\/JackDSH(?:\.app\/Contents\/MacOS\/JackDSH)?$/.test(command)
+    || /\\JackDSH\.exe$/i.test(command)
+}
+
+function readProcessEnv(pid, key) {
+  try {
+    if (process.platform === 'darwin' || process.platform === 'linux') {
+      const raw = execFileSync('ps', ['e', '-p', String(pid), '-o', 'command='], {
+        encoding: 'utf8',
+        timeout: 2000,
+        env: { ...process.env, LANG: 'C' },
+      })
+      return readEnvValue(raw, key)
+    }
+    return ''
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * macOS 的 ps 会把环境变量接在命令后面，值里的空格不会加引号。
+ * DSH_HOME 读到下一个我们自己写进去的变量名为止。
+ */
+export function readEnvValue(raw, key) {
+  const start = raw.indexOf(key + '=')
+  if (start < 0) return ''
+  let value = raw.slice(start + key.length + 1)
+  const markers = [' DSH_PORT=', ' PORT=', ' DSH_WORKSPACE=', ' DSH_DESKTOP_ISOLATED=', ' NODE_ENV=', ' JACKDSH_']
+  let end = value.length
+  for (const marker of markers) {
+    if (marker.startsWith(' ' + key + '=')) continue
+    const at = value.indexOf(marker)
+    if (at >= 0 && at < end) end = at
+  }
+  return value.slice(0, end).trim()
 }
 
 /**

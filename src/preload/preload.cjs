@@ -16,6 +16,7 @@ try {
         try { cb?.() } catch {}
       })
     },
+    restartCore: () => ipcRenderer.invoke('jackdsh:restart-core'),
   })
 } catch (err) {
   console.error('[JackDSH Preload] Failed to expose jackdshNative:', err)
