@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer, webFrame } = require('electron')
+const { contextBridge, ipcRenderer, webFrame, webUtils } = require('electron')
 
 // 暴露 native 窗口与 Dock 角标能力（不弹系统横幅、不申请通知权限）
 try {
@@ -17,6 +17,22 @@ try {
       })
     },
     restartCore: () => ipcRenderer.invoke('jackdsh:restart-core'),
+    // 拖入项的绝对路径 —— Electron 官方 API（32+ 起替代被移除的 File.path）。
+    //
+    // 为什么必须有它：Electron 32 移除了非标的 File.path，而 renderer 又开着
+    // contextIsolation（页面 require 不到 electron 模块），所以网页**看不到**从访达
+    // 拖进来的文件在磁盘上的位置。webUtils.getPathForFile 正是官方为这个场景补的 API，
+    // 也是社区唯一受支持的拿路径方式；它必须由拿到真实 File 对象的桥接函数来调用。
+    //
+    // 没有它时，插件只能拿文件名去常见目录里猜位置（mdfind / 目录扫描），
+    // 落到工作目录（例如 ~/Screen Studio Projects）就猜不中，表现为「拖进去没反应」。
+    getPathForFile: (file) => {
+      try {
+        return webUtils.getPathForFile(file) || ''
+      } catch {
+        return ''
+      }
+    },
   })
 } catch (err) {
   console.error('[JackDSH Preload] Failed to expose jackdshNative:', err)
