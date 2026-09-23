@@ -12,6 +12,11 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/** 把字符串转成可安全嵌入正则的字面量（marker 注释里可能出现正则元字符） */
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export class ServerManager {
@@ -36,6 +41,9 @@ export class ServerManager {
     this.lastExitCode = null
     this.relayConfigFile = join(this.dshHome, 'remote-relay.json')
     this.tunnelClient = null
+    // 包外工具目录：内置 CLI（bsk 等）从这里运行，绝不从 .app 内就地自更新
+    this.binDir = join(this.dshHome, 'bin')
+    this.externalBskPath = ''
   }
 
   /**
@@ -347,6 +355,9 @@ export class ServerManager {
    * 链接创建失败（如 Windows 无权限）时退化为物理复制。
    */
   initIsolatedProfile() {
+    // 先把内置 CLI 落到包外，下面的 ensureCordisPatch 才能把 bskPath 钉过去
+    this.ensureIsolatedTools()
+
     const profileDir = join(this.dshHome, 'profiles', 'web')
     mkdirSync(join(profileDir, 'node_modules'), { recursive: true })
 
@@ -420,6 +431,59 @@ export class ServerManager {
   }
 
   /**
+   * 把 App 内置的 bsk 复制到包外 <dshHome>/bin，并记下这个路径。
+   *
+   * 为什么必须搬出来：runtime/bin 在 PATH 里排在前面，插件与 agent shell 都会解析到
+   * 包内那份 bsk。而 bsk 守护进程会定期自行下载新版本并就地替换自己的可执行文件，
+   * 这一写就让整个 .app 的 codesign 密封失效，实测报
+   * "file modified: .../runtime/bin/bsk" 与 "a sealed resource is missing or invalid"。
+   * 本机 Gatekeeper 关闭时还能启动，发行包与公证则直接报废。搬进 dshHome 后，
+   * 自更新只动用户目录，签名永远干净。
+   *
+   * 包外副本已存在时不覆盖：那份会自己更新，不能被旧包反向降级回去。
+   * @returns {string} 包外 bsk 绝对路径；包内没有可执行副本时返回 ''
+   */
+  ensureIsolatedTools() {
+    const fileName = process.platform === 'win32' ? 'bsk.exe' : 'bsk'
+    const source = [
+      join(this.runtimePath, 'bin', process.platform + '-' + process.arch, fileName),
+      join(this.runtimePath, 'bin', fileName),
+    ].find((p) => existsSync(p))
+
+    if (!source) {
+      this.externalBskPath = ''
+      return ''
+    }
+
+    const dest = join(this.binDir, fileName)
+    let needCopy = true
+    try {
+      const stat = lstatSync(dest)
+      // 软链要拆掉：指向包内的链会让自更新穿透回 .app
+      if (stat.isSymbolicLink()) unlinkSync(dest)
+      else needCopy = !stat.isFile() || stat.size === 0
+    } catch {
+      needCopy = true
+    }
+
+    if (needCopy) {
+      try {
+        mkdirSync(this.binDir, { recursive: true })
+        cpSync(source, dest)
+        chmodSync(dest, 0o755)
+        console.log('[ServerManager] bsk 已落到包外: ' + dest)
+      } catch (error) {
+        console.warn('[ServerManager] bsk 复制到包外失败，退回包内路径: ' + error.message)
+        this.externalBskPath = ''
+        return ''
+      }
+    }
+
+    this.externalBskPath = dest
+    return dest
+  }
+
+  /**
    * 确保 cordis.patch.yml 处于健康状态：
    * 在 Windows 平台上，DSH 默认的 win32-native 文件夹选择器依赖 koffi 原生模块和子进程，
    * 在 Electron 封装、跨平台打包以及包含特定中文路径（UTF-16LE 截断 Bug）时极易崩溃退出
@@ -446,7 +510,8 @@ export class ServerManager {
         initialBlocks.unshift(`# Windows 环境下启用官方纯 JS 目录浏览选择器，避免原生 Win32 COM 对话框因原生模块或环境问题退出\n${browsePickerBlock}`)
       }
       writeFileSync(patchPath, initialBlocks.join('\n') + '\n')
-      return
+      // 不 return：继续往下走自愈分支，把 gemini / browserskill 等块在首次启动
+      // 就一次补齐。原来这里直接返回，全新安装要等第二次启动才有这些配置。
     }
 
     try {
@@ -482,20 +547,68 @@ export class ServerManager {
         changed = true
       }
 
+      // BrowserSkill：把 bsk 钉在包外 <dshHome>/bin，任何自更新都写不到 .app 里。
+      if (this.externalBskPath) {
+        const bskMarker = '- id: browserskill'
+        const pathLine = '    bskPath: ' + this.externalBskPath
+        if (!raw.includes(bskMarker)) {
+          const bskBlock = [
+            '# BrowserSkill：bsk 从 <dshHome>/bin 运行，包内那份只当首次启动的素材。',
+            '# 包内路径受 codesign 密封保护；bsk 守护进程会定时自更新并就地替换自己的',
+            '# 可执行文件，写进 .app 会让整包签名失效（a sealed resource is missing or invalid）。',
+            bskMarker,
+            '  config:',
+            pathLine,
+          ].join('\n')
+          raw = raw.trim() && raw.trim() !== '[]' ? `${raw.trimEnd()}\n\n${bskBlock}\n` : `${bskBlock}\n`
+          changed = true
+        } else if (!raw.includes(pathLine)) {
+          // 已有条目只校准 bskPath，其余自定义项原样保留。
+          // 逐行扫到下一个顶层 `- ` 条目为止，避免正则越界改到后面的配置。
+          const lines = raw.split('\n')
+          const start = lines.findIndex((line) => line.trim() === bskMarker)
+          let end = lines.length
+          for (let i = start + 1; i < lines.length; i += 1) {
+            if (/^-\s/.test(lines[i])) {
+              end = i
+              break
+            }
+          }
+          const scope = lines.slice(start, end)
+          const at = scope.findIndex((line) => /^\s+bskPath:/.test(line))
+          if (at === -1) {
+            if (!scope.some((line) => /^\s+config:\s*$/.test(line))) scope.push('  config:')
+            scope.push(pathLine)
+          } else {
+            scope[at] = pathLine
+          }
+          raw = [...lines.slice(0, start), ...scope, ...lines.slice(end)].join('\n')
+          changed = true
+        }
+      }
+
       // 手机远程公网中转配置同步注入
       const relayConfig = this.getRelayConfig()
       const mobilePlusMarker = '- id: dsh-mobile-plus'
+      const mobilePlusComment = '# 手机远程公网中转入口'
       if (relayConfig && relayConfig.enabled && relayConfig.publicBaseUrl) {
         const mobilePlusBlock = [
-          '# 手机远程公网中转入口',
+          mobilePlusComment,
           '- id: dsh-mobile-plus',
           '  config:',
-          `    publicBaseUrl: ${relayConfig.publicBaseUrl}`,
+          '    publicBaseUrl: ' + relayConfig.publicBaseUrl,
         ].join('\n')
 
         if (raw.includes(mobilePlusMarker)) {
-          const reg = /- id: dsh-mobile-plus[\r\n]+(?:\s+config:[\r\n]+(?:\s+publicBaseUrl:\s*[^\r\n]+[\r\n]*)?)?/g
-          const updated = raw.replace(reg, `${mobilePlusBlock}\n`)
+          // 匹配区间必须把前面可能堆积的 marker 注释一起吃掉。
+          // 老版本只替换 `- id:` 起的那段，注释留在原地，于是每次启动多攒一行
+          // （实测攒到 112 行）。用 * 吞掉全部重复注释后只写回一份，跑一次即自愈，
+          // 此后幂等（再跑时 updated === raw）。
+          const reg = new RegExp(
+            '(?:' + escapeRegExp(mobilePlusComment) + '[\\r\\n]+)*- id: dsh-mobile-plus[\\r\\n]+(?:\\s+config:[\\r\\n]+(?:\\s+publicBaseUrl:\\s*[^\\r\\n]+[\\r\\n]*)?)?',
+            'g'
+          )
+          const updated = raw.replace(reg, mobilePlusBlock + '\n')
           if (updated !== raw) {
             raw = updated
             changed = true
@@ -706,7 +819,12 @@ export class ServerManager {
    * 3. 保留并追加原有的 process.env.PATH。
    */
   resolveAugmentedPath() {
-    return augmentGlobalPath(this.runtimePath)
+    const base = augmentGlobalPath(this.runtimePath)
+    // <dshHome>/bin 必须排在包内 runtime/bin 之前：这样 agent 在 shell 里裸敲 bsk
+    // 也走包外那份。否则 `bsk daemon start` 仍会从 .app 内拉起，自更新继续写进包里。
+    if (!existsSync(this.binDir)) return base
+    const separator = process.platform === 'win32' ? ';' : ':'
+    return this.binDir + separator + base
   }
 
   /**
