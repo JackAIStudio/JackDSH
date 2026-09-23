@@ -12,3 +12,4 @@ token*.json
 sessions/
 *.pid
 data/
+*.bak-*
