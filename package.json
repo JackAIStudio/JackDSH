@@ -1,6 +1,6 @@
 {
   "name": "jackdsh",
-  "version": "9.22.19",
+  "version": "9.23.12",
   "type": "module",
   "description": "JackDSH (开箱即用 DeepSeek Harness 桌面客户端，内置创作者工作台与精选插件)",
   "main": "src/main/index.js",
