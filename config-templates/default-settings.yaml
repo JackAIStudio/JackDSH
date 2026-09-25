@@ -16,14 +16,11 @@ permission:
 ui-conversation:
   busyEnter: steer
 
-dsh-better-sidebar:
-  workspaceFence: false
-
-# 默认主力模型：Gemini 3.8 Flash (High 深度思考)
+# 默认主力模型：DeepSeek Flash (Max 深度思考)
 agent-default-model:
-  provider: gemini-oauth
-  model: gemini-3.8-flash-tiered
-  reasoningEffort: high
+  provider: deepseek-official
+  model: deepseek-flash
+  reasoningEffort: max
 
 # 内置 dsh-grok-oauth 插件配置
 llm-grok:
@@ -54,7 +51,11 @@ llm-grok:
           description: Quick, fast implementations
 
 # 内置 DeepSeek 官方模型路由
+# reasoningEffort 是「provider 层默认档位」：DSH 内核在缺省时回落 high，
+# 而模型选择器里每一行模型预挂的就是这个值——不写死 max，用户在菜单里
+# 换一次模型就会把默认档位打回 high。合法值只有 off/low/high/max。
 llm-deepseek:
+  reasoningEffort: max
   models:
     - id: deepseek-flash
       name: deepseek-flash

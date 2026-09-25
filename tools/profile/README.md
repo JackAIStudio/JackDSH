@@ -14,7 +14,7 @@
 | **Gemini OAuth** | 关联 Google Cloud Project ID、账号授权状态 | `gemini-oauth.json` |
 | **DeepSeek Key** | 官方原生 API Key（其余测试 Key 自动脱敏剔除） | `.credentials.yaml` |
 | **Jack 模式** | 出厂级高效自主编码 Agent 预设（移除阻塞提问） | `.agent-presets/jack/` |
-| **核心偏好** | 默认模型 (Gemini 3.8 Flash High)、全权限预设（已剥离内网私有代理） | `settings.yaml` |
+| **核心偏好** | 默认模型 (DeepSeek Flash Max)、全权限预设（已剥离内网私有代理） | `settings.yaml` |
 
 ---
 

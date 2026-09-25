@@ -260,9 +260,9 @@ async function main() {
       workspaceFence: false,
     },
     'agent-default-model': patch['agent-default-model'] || currentSettings['agent-default-model'] || {
-      provider: 'gemini-oauth',
-      model: 'gemini-3.8-flash-tiered',
-      reasoningEffort: 'high',
+      provider: 'deepseek-official',
+      model: 'deepseek-flash',
+      reasoningEffort: 'max',
     },
     'llm-grok': patch['llm-grok'] || currentSettings['llm-grok'] || {
       enableImageGen: true,
@@ -278,6 +278,7 @@ async function main() {
       ],
     },
     'llm-deepseek': patch['llm-deepseek'] || currentSettings['llm-deepseek'] || {
+      reasoningEffort: 'max',
       models: [
         {
           id: 'deepseek-flash',
@@ -293,7 +294,7 @@ async function main() {
   }
 
   writeFileSync(settingsPath, safeDumpYaml(merged), 'utf8')
-  console.log(`   ✔ 偏好设置: 已同步（默认预设 -> Jack 模式, 默认主力模型 -> Gemini 3.8 Flash High）`)
+  console.log(`   ✔ 偏好设置: 已同步（默认预设 -> Jack 模式, 默认主力模型 -> DeepSeek Flash Max）`)
 
   // 9. 恢复公网远程中继配置
   if (payload.remoteRelay) {

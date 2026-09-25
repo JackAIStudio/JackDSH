@@ -174,9 +174,9 @@ async function main() {
         'ui-conversation': { busyEnter: 'steer' },
         'dsh-better-sidebar': { workspaceFence: false },
         'agent-default-model': parsed['agent-default-model'] || {
-          provider: 'gemini-oauth',
-          model: 'gemini-3.8-flash-tiered',
-          reasoningEffort: 'high',
+          provider: 'deepseek-official',
+          model: 'deepseek-flash',
+          reasoningEffort: 'max',
         },
         'llm-grok': parsed['llm-grok'] ? {
           enableImageGen: parsed['llm-grok'].enableImageGen ?? true,
