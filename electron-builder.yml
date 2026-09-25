@@ -72,9 +72,15 @@ extraResources:
 
 mac:
   category: public.app-category.developer-tools
-  # 极简双版本：macOS 仅提供 Apple Silicon (M1/M2/M3/M4) arm64 dmg 镜像
+  # 极简双版本：macOS 仅提供 Apple Silicon (M1/M2/M3/M4) arm64
   target:
     - target: dmg
+      arch:
+        - arm64
+    # electron-updater 在 macOS 上只能拿 zip 当更新载荷（dmg 无法自更新），
+    # 所以必须同时产出 zip——它正是 latest-mac.yml 里被引用的那个文件。
+    # 少这一项，自动更新会在下载阶段报 "Cannot find latest-mac.yml"/找不到载荷。
+    - target: zip
       arch:
         - arm64
   artifactName: "${productName}-${version}-Mac-arm64.${ext}"
@@ -89,3 +95,12 @@ win:
       arch:
         - x64
   artifactName: "${productName}-${version}-Windows-portable.${ext}"
+
+# 唯一作用是让 electron-builder 在产物目录里生成 latest-mac.yml 更新清单
+# （electron-updater 靠它判断有没有新版本）。
+# 真正的上传由 GitHub Actions 负责：scripts/build.js 固定传 `--publish never`，
+# 所以这里不会触发 electron-builder 自带的发布行为。
+publish:
+  provider: github
+  owner: JackAIStudio
+  repo: JackDSH

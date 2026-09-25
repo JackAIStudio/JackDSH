@@ -99,7 +99,11 @@ jobs:
             --title "🚀 JackDSH ${{ github.ref_name }}" \
             $NOTES_ARG \
             --draft=false 2>/dev/null || true
-          gh release upload "${{ github.ref_name }}" release/*.dmg --clobber
+          gh release upload "${{ github.ref_name }}" \
+            release/*.dmg \
+            release/*-Mac-arm64.zip \
+            release/latest-mac.yml \
+            --clobber
 
       - name: Upload Windows Artifacts
         if: matrix.os == 'windows-latest'

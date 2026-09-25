@@ -30,7 +30,6 @@ export class ServerManager {
   constructor(options) {
     this.port = options.port
     this.isPortable = Boolean(options.isPortable)
-    this.isPreview = Boolean(options.isPreview)
     this.childProcess = null
     this.runtimePath = options.runtimePath || join(__dirname, '../../bundle-runtime')
 
@@ -109,7 +108,7 @@ export class ServerManager {
     const d = String(now.getDate()).padStart(2, '0')
     const today = `${y}-${m}-${d}`
 
-    const rootDirName = this.isPreview ? 'JackDSH-Preview' : 'JackDSH'
+    const rootDirName = 'JackDSH'
 
     if (this.isPortable) {
       const portableDays = join(this.dshHome, rootDirName, 'days', today)
@@ -706,7 +705,6 @@ export class ServerManager {
       DSH_DESKTOP_ISOLATED: '1',
       NODE_ENV: 'production',
       JACKDSH_VERSION: appVersion,
-      JACKDSH_ENV: this.isPreview ? 'preview' : 'production',
       ...(this.isPortable ? {
         JACKDSH_PORTABLE_ROOT: this.dshHome,
         DSH_IS_PORTABLE: '1',
