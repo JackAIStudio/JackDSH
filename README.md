@@ -12,10 +12,11 @@
 | 平台 | 安装包格式 | 适用说明 | 下载直达 |
 | :--- | :--- | :--- | :--- |
 | 🍏 **macOS** | `.dmg` 镜像安装包 | 专为 Apple Silicon (M1/M2/M3/M4 芯片) 深度适配，双击拖拽安装 | [前往 Releases 下载](../../releases/latest) |
-| 🪟 **Windows** | `.exe` 标准安装包 | 标准安装向导，支持自由选择安装与数据目录（推荐 D 盘），自动生成桌面图标 | [前往 Releases 下载](../../releases/latest) |
+| 🪟 **Windows** | `.zip` 绿色便携版 | 解压即用，不写注册表、不装服务，可放在 U 盘随身携带 | [前往 Releases 下载](../../releases/latest) |
 
 > 💡 **初次打开说明**：  
-> 本项目为个人独立开源构建，未购买商业开发者企业证书。macOS 用户首次打开如提示“无法验证开发者”，请在 **系统设置 → 隐私与安全性** 中点击 **“仍要打开”** 即可正常使用。
+> macOS 安装包已使用 **Developer ID 签名并完成 Apple 公证（notarized）**，双击即可正常打开，不会出现“无法验证开发者”的拦截。  
+> 若在个别环境（如从第三方镜像下载、或系统版本较旧）仍被 Gatekeeper 拦下，可到 **系统设置 → 隐私与安全性** 点击 **“仍要打开”** 放行一次。
 
 ---
 
@@ -48,7 +49,6 @@
 - 💰 **DeepSeek 余额监控**：[`dsh-deepseek-balance`](https://github.com/JackAIStudio/dsh-deepseek-balance)
 - 📅 **今日工作区拦截**：[`dsh-today`](https://github.com/JackAIStudio/dsh-today)
 - 📊 **插件生态大盘与随身迁移**：[`dsh-plugin-dashboard`](https://github.com/JackAIStudio/dsh-plugin-dashboard)
-- 🗂️ **VSCode 风格侧栏**：[`DSH-better-sidebar`](https://github.com/JackAIStudio/DSH-better-sidebar)
 - 📋 **Zero-UI 原生路径粘贴与拖拽**：[`dsh-paste-path`](https://github.com/JackAIStudio/dsh-paste-path)
 - 🚀 **跨平台开机自启动**：[`dsh-autostart`](https://github.com/JackAIStudio/dsh-autostart)
 - 🔄 **服务快速重启**：[`dsh-web-restart`](https://github.com/JackAIStudio/dsh-web-restart)
@@ -59,6 +59,14 @@
 - 🧭 **会话深层导航**：[`dsh-session-navigator`](https://github.com/JackAIStudio/dsh-session-navigator)
 - 🔎 **模型跟随联网搜索**：[`dsh-web-search-follow`](https://github.com/JackAIStudio/dsh-web-search-follow)
 - 🤝 **WorkBuddy 双轨并发直连**：[`dsh-workbuddy-dual`](https://github.com/JackAIStudio/dsh-workbuddy-dual)
+- 🛡️ **会话分支守卫**：[`dsh-fork-guard`](https://github.com/JackAIStudio/dsh-fork-guard)
+- 🖼️ **产物图片自适应视口**：[`dsh-image-fit`](https://github.com/JackAIStudio/dsh-image-fit)
+- ⭐ **轮次收藏与对话内检索**：[`dsh-turn-bookmarks`](https://github.com/JackAIStudio/dsh-turn-bookmarks)
+
+社区精选插件（npm 公开发行包，构建时按锁定版本预装）：
+
+- 🗄️ **归档会话管理**：[`@mlgbnb/dsh-archive-manager`](https://github.com/z953218350/dsh-archive-manager)
+- 🌐 **BrowserSkill 原生浏览器**：[`@wxg-prc-cpg/browser-skill-dsh-plugin`](https://github.com/Tencent/BrowserSkill)
 
 ---
 
