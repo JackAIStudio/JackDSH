@@ -555,7 +555,7 @@ app.whenReady().then(async () => {
     app.setAboutPanelOptions({
       applicationName: 'JackDSH',
       applicationVersion: `v${app.getVersion()}`,
-      version: 'DeepSeek Harness 底座 v0.1.5-rc.2',
+      version: 'DeepSeek Harness 底座 v0.1.7-rc.2',
       copyright: 'JackAIStudio · 基于 DeepSeek Harness 官方框架构建',
     })
     await checkDataDirectory(app.getPath('userData'))

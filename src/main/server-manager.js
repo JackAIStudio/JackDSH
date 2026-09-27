@@ -673,6 +673,35 @@ export class ServerManager {
     return this.launchCore()
   }
 
+  /**
+   * 解析执行 DSH 核心服务的 Node.js 运行时：
+   * 1. 优先使用包内内置的独立 Node.js 二进制（runtime/bin/node）；
+   * 2. 检查系统标准全局 Node.js 二进制（/usr/local/bin/node, /opt/homebrew/bin/node 等）；
+   * 3. 兜底回退到 Electron 自身（ELECTRON_RUN_AS_NODE=1）。
+   * 优先使用独立 Node.js 运行时能避开 Electron-as-Node 对原生 C++ addon 的符号魔数校验阻断。
+   */
+  resolveNodeBinary() {
+    const isWin = process.platform === 'win32'
+    const exeName = isWin ? 'node.exe' : 'node'
+    const bundledNode = [
+      join(this.runtimePath, 'bin', `${process.platform}-${process.arch}`, exeName),
+      join(this.runtimePath, 'bin', exeName),
+    ].find((p) => existsSync(p))
+    if (bundledNode) return { binary: bundledNode, isRealNode: true }
+
+    const systemNodes = isWin ? [
+      join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
+    ] : [
+      '/usr/local/bin/node',
+      '/opt/homebrew/bin/node',
+    ]
+    for (const sysNode of systemNodes) {
+      if (existsSync(sysNode)) return { binary: sysNode, isRealNode: true }
+    }
+
+    return { binary: process.execPath, isRealNode: false }
+  }
+
   async launchCore() {
     this.initIsolatedStorage()
     this.initIsolatedProfile()
@@ -690,12 +719,14 @@ export class ServerManager {
       if (appPkg.version) appVersion = appPkg.version
     } catch {}
 
+    const { binary: nodeBinary, isRealNode } = this.resolveNodeBinary()
+    console.log(`[ServerManager] Using Node runner: ${nodeBinary} (isRealNode=${isRealNode})`)
+
     const augmentedPath = this.resolveAugmentedPath()
     const env = {
       ...process.env,
       PATH: augmentedPath,
-      // 关键：告诉 Electron 二进制作为无界面的 Node.js 运行时执行，绝不递归弹出 GUI 窗口
-      ELECTRON_RUN_AS_NODE: '1',
+      ...(isRealNode ? {} : { ELECTRON_RUN_AS_NODE: '1' }),
       NODE_PATH: nodePath,
       // 强制隔离环境变量，绝不读取日常 ~/.dsh
       DSH_HOME: this.dshHome,
@@ -723,7 +754,7 @@ export class ServerManager {
       return serverUrl
     }
 
-    this.childProcess = spawn(process.execPath, [
+    this.childProcess = spawn(nodeBinary, [
       '--expose-internals',
       binScript,
       'web',
