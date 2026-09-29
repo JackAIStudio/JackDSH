@@ -546,6 +546,20 @@ export class ServerManager {
         changed = true
       }
 
+      // Grok 同样不能直连。缺了这段时，3180 上额度请求会
+      // could not reach cli-chat-proxy.grok.com: fetch failed。
+      if (!raw.includes('id: llm-grok')) {
+        const grokBlock = [
+          '# Grok 插件代理：国内直连 cli-chat-proxy.grok.com 会超时，额度与登录都失败。',
+          '# 只作用于 x.ai / grok.com，和其他模型无关。',
+          '- id: llm-grok',
+          '  config:',
+          '    proxy: 127.0.0.1:7897',
+        ].join('\n')
+        raw = raw.trim() && raw.trim() !== '[]' ? `${raw.trimEnd()}\n\n${grokBlock}\n` : `${grokBlock}\n`
+        changed = true
+      }
+
       // BrowserSkill：把 bsk 钉在包外 <dshHome>/bin，任何自更新都写不到 .app 里。
       if (this.externalBskPath) {
         const bskMarker = '- id: browserskill'
@@ -614,6 +628,21 @@ export class ServerManager {
           }
         } else {
           raw = raw.trim() && raw.trim() !== '[]' ? `${raw.trimEnd()}\n\n${mobilePlusBlock}\n` : `${mobilePlusBlock}\n`
+          changed = true
+        }
+      }
+
+      // Jack 预设自愈保护：确保 0.1.7+ 新版声明式预设系统正确注册 Jack 模式
+      if (!raw.includes('id: preset-jack')) {
+        let presetBlock = ''
+        const templatePatchFile = join(__dirname, '../../config-templates/presets/jack/cordis.patch.yml')
+        if (existsSync(templatePatchFile)) {
+          try {
+            presetBlock = readFileSync(templatePatchFile, 'utf8')
+          } catch {}
+        }
+        if (presetBlock) {
+          raw = raw.trim() && raw.trim() !== '[]' ? `${raw.trimEnd()}\n\n${presetBlock.trim()}\n` : `${presetBlock.trim()}\n`
           changed = true
         }
       }
