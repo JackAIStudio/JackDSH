@@ -74,3 +74,5 @@ plugins:
     npm: "@mlgbnb/dsh-archive-manager@1.0.7"
   - name: "@wxg-prc-cpg/browser-skill-dsh-plugin"
     npm: "@wxg-prc-cpg/browser-skill-dsh-plugin@0.3.0"
+  - name: "dsh-better-sidebar"
+    npm: "dsh-better-sidebar@0.22.1"

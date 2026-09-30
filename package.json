@@ -1,8 +1,8 @@
 {
   "name": "jackdsh",
-  "version": "9.27.18",
+  "version": "9.30.14",
   "type": "module",
-  "description": "JackDSH (\u5f00\u7bb1\u5373\u7528 DeepSeek Harness \u684c\u9762\u5ba2\u6237\u7aef\uff0c\u5185\u7f6e\u521b\u4f5c\u8005\u5de5\u4f5c\u53f0\u4e0e\u7cbe\u9009\u63d2\u4ef6)",
+  "description": "JackDSH (开箱即用 DeepSeek Harness 桌面客户端，内置创作者工作台与精选插件)",
   "main": "src/main/index.js",
   "author": "JackAIStudio",
   "license": "MIT",

@@ -32,6 +32,7 @@ export const OWN_PLUGINS = [
 export const COMMUNITY_PLUGINS = [
   '@mlgbnb/dsh-archive-manager',
   '@wxg-prc-cpg/browser-skill-dsh-plugin',
+  'dsh-better-sidebar',
 ]
 
 export const ALL_BUILTIN_PLUGINS = [
