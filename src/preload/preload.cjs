@@ -33,6 +33,11 @@ try {
         return ''
       }
     },
+    showItemInFolder: (path) => {
+      if (typeof path === 'string' && path.trim()) {
+        ipcRenderer.send('jackdsh:show-item-in-folder', path.trim())
+      }
+    },
   })
 } catch (err) {
   console.error('[JackDSH Preload] Failed to expose jackdshNative:', err)

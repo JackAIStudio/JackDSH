@@ -132,6 +132,16 @@ ipcMain.handle('jackdsh:restart-core', async () => {
   return { ok: true, port: serverManager.port }
 })
 
+// 在 macOS 访达 / 文件管理器中定位并高亮文件
+ipcMain.on('jackdsh:show-item-in-folder', (_event, targetPath) => {
+  if (typeof targetPath === 'string' && targetPath.trim()) {
+    const p = targetPath.trim()
+    if (existsSync(p)) {
+      shell.showItemInFolder(p)
+    }
+  }
+})
+
 /**
  * 为 macOS 沉浸式标题栏（hiddenInset）注入精细化拖拽支持与交互防护：
  * 1. 顶部全局挂载弹性拖拽条：新会话空白页提供 38px 宽裕拖拽，有会话顶栏时收敛为 6px 边缘抓手；
@@ -529,6 +539,61 @@ async function createWindow() {
       return { action: 'deny' }
     }
     return { action: 'allow' }
+  })
+
+  // 网页上下文菜单（系统级原生右键菜单）：图片复制/下载、选中文本复制、编辑操作、审查元素
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const template = []
+
+    // 1. 如果右键点击的是图片
+    if (params.mediaType === 'image') {
+      template.push(
+        {
+          label: '复制图片',
+          click: () => mainWindow.webContents.copyImageAt(params.x, params.y),
+        },
+        {
+          label: '复制图片地址',
+          click: () => clipboard.writeText(params.srcURL),
+        },
+        {
+          label: '图片另存为...',
+          click: () => mainWindow.webContents.downloadURL(params.srcURL),
+        },
+        { type: 'separator' }
+      )
+    }
+
+    // 2. 选中文本
+    if (params.selectionText && params.selectionText.trim()) {
+      template.push(
+        { role: 'copy', label: '复制' },
+        { type: 'separator' }
+      )
+    }
+
+    // 3. 可编辑输入框
+    if (params.isEditable) {
+      template.push(
+        { role: 'undo', label: '撤销' },
+        { role: 'redo', label: '重做' },
+        { type: 'separator' },
+        { role: 'cut', label: '剪切' },
+        { role: 'copy', label: '复制' },
+        { role: 'paste', label: '粘贴' },
+        { role: 'selectAll', label: '全选' },
+        { type: 'separator' }
+      )
+    }
+
+    // 4. 检查元素
+    template.push({
+      label: '检查元素',
+      click: () => mainWindow.webContents.inspectElement(params.x, params.y),
+    })
+
+    const menu = Menu.buildFromTemplate(template)
+    menu.popup({ window: mainWindow, x: params.x, y: params.y })
   })
 
   mainWindow.webContents.on('did-finish-load', () => {
