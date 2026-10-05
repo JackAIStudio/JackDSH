@@ -19,6 +19,8 @@ extraResources:
   - from: "bundle-runtime/"
     to: "runtime"
     filter:
+      - "!**/* 2*"
+      - "!**/* 3*"
       - "**/*"
   - from: "node_modules/"
     to: "node_modules"
