@@ -19,9 +19,17 @@ extraResources:
   - from: "bundle-runtime/"
     to: "runtime"
     filter:
-      - "!**/* 2*"
-      - "!**/* 3*"
+      # 顺序即语义：electron-builder 用 minimatch-all 做「顺序覆盖」，放在最后的
+      # 包含模式会把前面的排除项重新捞回来。旧写法 `!**/* 2*`/`!**/* 3*`/`**/*`
+      # 实测对鬼影目录返回 KEEP（排除完全失效），必须把 `**/*` 提到最前。
+      #
+      # 背景：~/Documents 归 iCloud FileProvider 管理，prepare-bundle 批量写盘时
+      # FileProvider 会留下 `plugins 2` / `bin 2` 这类 dataless 残骸（flags
+      # compressed,dataless / nlink 65535）。walk 到它们会以
+      # "Unknown system error -11 (Resource deadlock avoided)" 中断整个构建。
+      # bundle-runtime 内不存在含空格的文件名，故此模式零误伤。
       - "**/*"
+      - "!**/* [0-9]*"
   - from: "node_modules/"
     to: "node_modules"
     filter:
